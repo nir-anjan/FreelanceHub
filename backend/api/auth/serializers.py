@@ -1,0 +1,273 @@
+from rest_framework import serializers
+from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import User
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user registration
+    """
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={'input_type': 'password'}
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'password', 'password_confirm',
+            'first_name', 'last_name', 'role', 'phone', 'bio'
+        )
+        extra_kwargs = {
+            'email': {'required': True},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+        }
+    
+    def validate_email(self, value):
+        """
+        Validate email uniqueness
+        """
+        if User.objects.filter(email=value.lower()).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower()
+    
+    def validate_username(self, value):
+        """
+        Validate username uniqueness
+        """
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        return value
+    
+    def validate_role(self, value):
+        """
+        Validate role choice
+        """
+        valid_roles = ['freelancer', 'client']  # Admin users can only be created by superusers
+        if value not in valid_roles:
+            raise serializers.ValidationError("Invalid role. Choose either 'freelancer' or 'client'.")
+        return value
+    
+    def validate(self, attrs):
+        """
+        Validate password confirmation and strength
+        """
+        password = attrs.get('password')
+        password_confirm = attrs.pop('password_confirm', None)
+        
+        if password != password_confirm:
+            raise serializers.ValidationError({
+                'password_confirm': "Passwords do not match."
+            })
+        
+        # Validate password strength
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError({
+                'password': list(e.messages)
+            })
+        
+        return attrs
+    
+    def create(self, validated_data):
+        """
+        Create and return a new user instance
+        """
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    """
+    Serializer for user login
+    """
+    username = serializers.CharField()
+    password = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    
+    def validate(self, attrs):
+        """
+        Validate user credentials
+        """
+        username = attrs.get('username')
+        password = attrs.get('password')
+        
+        if username and password:
+            # Allow login with either username or email
+            user = None
+            if '@' in username:
+                # Login with email
+                try:
+                    user_obj = User.objects.get(email=username.lower())
+                    user = authenticate(username=user_obj.username, password=password)
+                except User.DoesNotExist:
+                    pass
+            else:
+                # Login with username
+                user = authenticate(username=username, password=password)
+            
+            if not user:
+                raise serializers.ValidationError("Invalid credentials.")
+            
+            if not user.is_active:
+                raise serializers.ValidationError("User account is disabled.")
+            
+            attrs['user'] = user
+            return attrs
+        else:
+            raise serializers.ValidationError("Both username and password are required.")
+
+
+class AdminLoginSerializer(UserLoginSerializer):
+    """
+    Serializer for admin login - extends UserLoginSerializer with admin check
+    """
+    
+    def validate(self, attrs):
+        """
+        Validate admin credentials
+        """
+        attrs = super().validate(attrs)
+        user = attrs['user']
+        
+        if not (user.role == 'admin' or user.is_superuser):
+            raise serializers.ValidationError("Access denied. Admin privileges required.")
+        
+        return attrs
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user profile information
+    """
+    full_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
+            'role', 'phone', 'bio', 'profile_picture', 'date_joined', 
+            'last_login', 'email_verified', 'is_active'
+        )
+        read_only_fields = ('id', 'username', 'date_joined', 'last_login', 'email_verified')
+    
+    def get_full_name(self, obj):
+        """
+        Get user's full name
+        """
+        return obj.get_full_name()
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user profile
+    """
+    
+    class Meta:
+        model = User
+        fields = (
+            'first_name', 'last_name', 'phone', 'bio', 'profile_picture'
+        )
+    
+    def validate_phone(self, value):
+        """
+        Validate phone number format
+        """
+        if value and not value.replace('+', '').replace('-', '').replace(' ', '').isdigit():
+            raise serializers.ValidationError("Please enter a valid phone number.")
+        return value
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Serializer for password change
+    """
+    old_password = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={'input_type': 'password'}
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    
+    def validate_old_password(self, value):
+        """
+        Validate old password
+        """
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Old password is incorrect.")
+        return value
+    
+    def validate(self, attrs):
+        """
+        Validate new password confirmation
+        """
+        new_password = attrs.get('new_password')
+        new_password_confirm = attrs.get('new_password_confirm')
+        
+        if new_password != new_password_confirm:
+            raise serializers.ValidationError({
+                'new_password_confirm': "New passwords do not match."
+            })
+        
+        # Validate password strength
+        try:
+            validate_password(new_password)
+        except ValidationError as e:
+            raise serializers.ValidationError({
+                'new_password': list(e.messages)
+            })
+        
+        return attrs
+    
+    def save(self):
+        """
+        Save the new password
+        """
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
+
+
+class TokenSerializer(serializers.Serializer):
+    """
+    Serializer for token response
+    """
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = UserProfileSerializer()
+    
+    def create(self, validated_data):
+        """
+        Not implemented - this is for response only
+        """
+        raise NotImplementedError("TokenSerializer is read-only")
+    
+    def update(self, instance, validated_data):
+        """
+        Not implemented - this is for response only
+        """
+        raise NotImplementedError("TokenSerializer is read-only")
