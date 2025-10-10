@@ -1,30 +1,21 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration
+    Simplified serializer for user registration
     """
-    password = serializers.CharField(
-        write_only=True,
-        min_length=8,
-        style={'input_type': 'password'}
-    )
-    password_confirm = serializers.CharField(
-        write_only=True,
-        style={'input_type': 'password'}
-    )
+    password = serializers.CharField(write_only=True)
+    password_confirm = serializers.CharField(write_only=True)
     
     class Meta:
         model = User
         fields = (
             'id', 'username', 'email', 'password', 'password_confirm',
-            'first_name', 'last_name', 'role', 'phone', 'bio'
+            'first_name', 'last_name', 'role', 'phone'
         )
         extra_kwargs = {
             'email': {'required': True},
@@ -50,16 +41,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def validate_role(self, value):
         """
-        Validate role choice
+        Validate role choice - only freelancer and client allowed for registration
         """
-        valid_roles = ['freelancer', 'client']  # Admin users can only be created by superusers
+        valid_roles = ['freelancer', 'client']
         if value not in valid_roles:
             raise serializers.ValidationError("Invalid role. Choose either 'freelancer' or 'client'.")
         return value
     
     def validate(self, attrs):
         """
-        Validate password confirmation and strength
+        Simple validation - only check that passwords match
         """
         password = attrs.get('password')
         password_confirm = attrs.pop('password_confirm', None)
@@ -69,24 +60,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 'password_confirm': "Passwords do not match."
             })
         
-        # Validate password strength
-        try:
-            validate_password(password)
-        except ValidationError as e:
-            raise serializers.ValidationError({
-                'password': list(e.messages)
-            })
-        
         return attrs
     
     def create(self, validated_data):
         """
         Create and return a new user instance
         """
+        # Remove password_confirm from validated_data as it shouldn't be saved
+        validated_data.pop('password_confirm', None)
+        
+        # Extract password for secure handling
         password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data)
+        
+        # Create user instance
+        user = User.objects.create(**validated_data)
+        
+        # Set password securely using Django's built-in method
         user.set_password(password)
         user.save()
+        
         return user
 
 
@@ -230,14 +222,6 @@ class PasswordChangeSerializer(serializers.Serializer):
         if new_password != new_password_confirm:
             raise serializers.ValidationError({
                 'new_password_confirm': "New passwords do not match."
-            })
-        
-        # Validate password strength
-        try:
-            validate_password(new_password)
-        except ValidationError as e:
-            raise serializers.ValidationError({
-                'new_password': list(e.messages)
             })
         
         return attrs

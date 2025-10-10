@@ -41,20 +41,25 @@ class RegisterAPIView(APIView, StandardResponseMixin):
             user.last_login_ip = get_client_ip(request)
             user.save(update_fields=['last_login_ip'])
             
-            # Return user data without password
-            user_data = UserProfileSerializer(user).data
+            # Return simplified user data
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role
+            }
             
-            return self.success_response(
-                message="User registered successfully",
-                data=user_data,
-                status_code=status.HTTP_201_CREATED
-            )
+            return Response({
+                'message': 'Registration successful',
+                'user': user_data
+            }, status=status.HTTP_201_CREATED)
         
-        return self.error_response(
-            message="Registration failed",
-            errors=serializer.errors,
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({
+            'message': 'Registration failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginAPIView(APIView, StandardResponseMixin):
