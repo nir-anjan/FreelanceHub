@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Briefcase, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts";
@@ -27,24 +33,24 @@ const Register = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    
+
     // Clear error for this field when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: '',
+        [name]: "",
       }));
     }
   };
 
   const handleRoleChange = (value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      role: value as 'freelancer' | 'client',
+      role: value as "freelancer" | "client",
     }));
   };
 
@@ -52,35 +58,35 @@ const Register = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+      newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
+      newErrors.username = "Username must be at least 3 characters";
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = "Please enter a valid email address";
     }
 
     if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required';
+      newErrors.first_name = "First name is required";
     }
 
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required';
+      newErrors.last_name = "Last name is required";
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+      newErrors.password = "Password must be at least 8 characters";
     }
 
     if (!formData.password_confirm) {
-      newErrors.password_confirm = 'Please confirm your password';
+      newErrors.password_confirm = "Please confirm your password";
     } else if (formData.password !== formData.password_confirm) {
-      newErrors.password_confirm = 'Passwords do not match';
+      newErrors.password_confirm = "Passwords do not match";
     }
 
     setErrors(newErrors);
@@ -89,7 +95,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -98,7 +104,7 @@ const Register = () => {
       await register(formData);
     } catch (error) {
       // Error handling is done in the AuthContext
-      console.error('Registration error:', error);
+      console.error("Registration error:", error);
     }
   };
 
@@ -106,7 +112,10 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center gradient-hero px-4 py-8">
       <Card className="w-full max-w-md shadow-card-hover">
         <CardHeader className="space-y-1 text-center">
-          <Link to="/" className="flex items-center justify-center gap-2 font-bold text-2xl text-primary mb-2">
+          <Link
+            to="/"
+            className="flex items-center justify-center gap-2 font-bold text-2xl text-primary mb-2"
+          >
             <Briefcase className="h-7 w-7" />
             FreelanceHub
           </Link>
@@ -212,7 +221,11 @@ const Register = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {errors.password && (
@@ -230,7 +243,9 @@ const Register = () => {
                   placeholder="Confirm your password"
                   value={formData.password_confirm}
                   onChange={handleChange}
-                  className={errors.password_confirm ? "border-red-500 pr-10" : "pr-10"}
+                  className={
+                    errors.password_confirm ? "border-red-500 pr-10" : "pr-10"
+                  }
                   required
                 />
                 <button
@@ -238,11 +253,17 @@ const Register = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {errors.password_confirm && (
-                <p className="text-sm text-red-500">{errors.password_confirm}</p>
+                <p className="text-sm text-red-500">
+                  {errors.password_confirm}
+                </p>
               )}
             </div>
 
@@ -256,14 +277,18 @@ const Register = () => {
                   <RadioGroupItem value="freelancer" id="freelancer" />
                   <Label htmlFor="freelancer" className="flex-1 cursor-pointer">
                     <div className="font-medium">Work as a Freelancer</div>
-                    <div className="text-sm text-muted-foreground">Find jobs and build your career</div>
+                    <div className="text-sm text-muted-foreground">
+                      Find jobs and build your career
+                    </div>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                   <RadioGroupItem value="client" id="client" />
                   <Label htmlFor="client" className="flex-1 cursor-pointer">
                     <div className="font-medium">Hire Talent</div>
-                    <div className="text-sm text-muted-foreground">Post jobs and find experts</div>
+                    <div className="text-sm text-muted-foreground">
+                      Post jobs and find experts
+                    </div>
                   </Label>
                 </div>
               </RadioGroup>
@@ -276,7 +301,10 @@ const Register = () => {
 
           <div className="mt-6 text-center text-sm">
             Already have an account?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">
+            <Link
+              to="/login"
+              className="text-primary font-medium hover:underline"
+            >
               Sign in
             </Link>
           </div>

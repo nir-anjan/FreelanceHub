@@ -5,7 +5,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'freelancer' | 'client' | 'admin';
+  role: "freelancer" | "client" | "admin";
   phone?: string;
   bio?: string;
   profile_picture?: string;
@@ -28,7 +28,7 @@ export interface RegisterRequest {
   password_confirm: string;
   first_name: string;
   last_name: string;
-  role: 'freelancer' | 'client';
+  role: "freelancer" | "client";
   phone?: string;
   bio?: string;
 }
@@ -120,7 +120,7 @@ export interface AuthContextType {
 }
 
 // Role-based types
-export type UserRole = 'freelancer' | 'client' | 'admin';
+export type UserRole = "freelancer" | "client" | "admin";
 
 export interface RolePermissions {
   canAccessAdmin: boolean;

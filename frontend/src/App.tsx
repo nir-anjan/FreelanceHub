@@ -4,7 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts";
-import { ProtectedRoute, AdminRoute, GuestRoute } from "@/components/ProtectedRoute";
+import {
+  ProtectedRoute,
+  AdminRoute,
+  GuestRoute,
+} from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -28,18 +32,24 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
-            
+
             {/* Guest Only Routes - Redirect to dashboard if already authenticated */}
-            <Route path="/login" element={
-              <GuestRoute>
-                <Login />
-              </GuestRoute>
-            } />
-            <Route path="/register" element={
-              <GuestRoute>
-                <Register />
-              </GuestRoute>
-            } />
+            <Route
+              path="/login"
+              element={
+                <GuestRoute>
+                  <Login />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <GuestRoute>
+                  <Register />
+                </GuestRoute>
+              }
+            />
 
             {/* Public job and freelancer listings */}
             <Route path="/jobs" element={<Jobs />} />
@@ -48,28 +58,40 @@ const App = () => (
             <Route path="/freelancers/:id" element={<FreelancerProfile />} />
 
             {/* Admin Only Routes */}
-            <Route path="/admin" element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            } />
-            <Route path="/admin/jobs" element={
-              <AdminRoute>
-                <AdminJobs />
-              </AdminRoute>
-            } />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/jobs"
+              element={
+                <AdminRoute>
+                  <AdminJobs />
+                </AdminRoute>
+              }
+            />
 
             {/* Protected Routes (require authentication but any role) */}
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <div>Profile Page (Coming Soon)</div>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <div>Dashboard (Coming Soon)</div>
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <div>Profile Page (Coming Soon)</div>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <div>Dashboard (Coming Soon)</div>
+                </ProtectedRoute>
+              }
+            />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

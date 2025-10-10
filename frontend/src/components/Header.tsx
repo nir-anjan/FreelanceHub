@@ -1,8 +1,23 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Briefcase, User, Settings, LogOut, Shield } from "lucide-react";
+import {
+  Menu,
+  X,
+  Briefcase,
+  User,
+  Settings,
+  LogOut,
+  Shield,
+} from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 
@@ -21,7 +36,7 @@ const Header = () => {
     try {
       await logout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -36,7 +51,10 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:opacity-80 transition-opacity">
+          <Link
+            to="/"
+            className="flex items-center gap-2 font-bold text-xl text-primary hover:opacity-80 transition-opacity"
+          >
             <Briefcase className="h-6 w-6" />
             FreelanceHub
           </Link>
@@ -61,9 +79,15 @@ const Header = () => {
             {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button
+                    variant="ghost"
+                    className="relative h-8 w-8 rounded-full"
+                  >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_picture} alt={`${user.first_name} ${user.last_name}`} />
+                      <AvatarImage
+                        src={user.profile_picture}
+                        alt={`${user.first_name} ${user.last_name}`}
+                      />
                       <AvatarFallback>
                         {getUserInitials(user.first_name, user.last_name)}
                       </AvatarFallback>
@@ -97,7 +121,7 @@ const Header = () => {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  {user.role === 'admin' && (
+                  {user.role === "admin" && (
                     <DropdownMenuItem asChild>
                       <Link to="/admin" className="w-full cursor-pointer">
                         <Shield className="mr-2 h-4 w-4" />
@@ -133,7 +157,11 @@ const Header = () => {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
           </button>
         </div>
 
@@ -159,31 +187,44 @@ const Header = () => {
                     <p className="text-sm font-medium">
                       {user.first_name} {user.last_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {user.role}
+                    </p>
                   </div>
                   <Button variant="outline" asChild className="w-full">
-                    <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </Link>
                   </Button>
                   <Button variant="outline" asChild className="w-full">
-                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
                       Dashboard
                     </Link>
                   </Button>
-                  {user.role === 'admin' && (
+                  {user.role === "admin" && (
                     <Button variant="outline" asChild className="w-full">
-                      <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Link
+                        to="/admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
                         <Shield className="mr-2 h-4 w-4" />
                         Admin Panel
                       </Link>
                     </Button>
                   )}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full text-red-600 hover:text-red-700"
                     onClick={() => {
                       handleLogout();
@@ -202,7 +243,10 @@ const Header = () => {
                     </Link>
                   </Button>
                   <Button asChild className="w-full">
-                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
                       Sign Up
                     </Link>
                   </Button>

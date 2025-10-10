@@ -1,27 +1,27 @@
-import httpClient from './httpClient';
-import { 
-  User, 
-  LoginRequest, 
-  RegisterRequest, 
-  AuthResponse, 
-  RegisterResponse, 
-  ProfileResponse, 
-  TokenRefreshResponse, 
-  LogoutResponse, 
-  ProfileUpdateRequest, 
+import httpClient from "./httpClient";
+import {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  RegisterResponse,
+  ProfileResponse,
+  TokenRefreshResponse,
+  LogoutResponse,
+  ProfileUpdateRequest,
   PasswordChangeRequest,
   DecodedToken,
-  UserRole
-} from '@/types/auth';
+  UserRole,
+} from "@/types/auth";
 
 class AuthService {
   private readonly ENDPOINTS = {
-    LOGIN: '/auth/login/',
-    REGISTER: '/auth/register/',
-    LOGOUT: '/auth/logout/',
-    PROFILE: '/auth/profile/',
-    REFRESH_TOKEN: '/auth/token/refresh/',
-    CHANGE_PASSWORD: '/auth/password/change/',
+    LOGIN: "/auth/login/",
+    REGISTER: "/auth/register/",
+    LOGOUT: "/auth/logout/",
+    PROFILE: "/auth/profile/",
+    REFRESH_TOKEN: "/auth/token/refresh/",
+    CHANGE_PASSWORD: "/auth/password/change/",
   };
 
   /**
@@ -40,7 +40,7 @@ class AuthService {
           access: response.data.data.access,
           refresh: response.data.data.refresh,
         });
-        
+
         this.storeUserData(response.data.data.user);
       }
 
@@ -72,7 +72,7 @@ class AuthService {
   async logout(): Promise<void> {
     try {
       const refreshToken = this.getStoredRefreshToken();
-      
+
       if (refreshToken) {
         await httpClient.post<LogoutResponse>(this.ENDPOINTS.LOGOUT, {
           refresh: refreshToken,
@@ -80,7 +80,7 @@ class AuthService {
       }
     } catch (error) {
       // Continue with logout even if API call fails
-      console.warn('Logout API call failed:', error);
+      console.warn("Logout API call failed:", error);
     } finally {
       // Always clear local storage
       this.clearAuthData();
@@ -92,13 +92,15 @@ class AuthService {
    */
   async getProfile(): Promise<User> {
     try {
-      const response = await httpClient.get<ProfileResponse>(this.ENDPOINTS.PROFILE);
-      
+      const response = await httpClient.get<ProfileResponse>(
+        this.ENDPOINTS.PROFILE
+      );
+
       if (response.data.success) {
         this.storeUserData(response.data.data);
         return response.data.data;
       }
-      
+
       throw new Error(response.data.message);
     } catch (error: any) {
       throw this.handleAuthError(error);
@@ -131,8 +133,11 @@ class AuthService {
    */
   async changePassword(data: PasswordChangeRequest): Promise<void> {
     try {
-      const response = await httpClient.post(this.ENDPOINTS.CHANGE_PASSWORD, data);
-      
+      const response = await httpClient.post(
+        this.ENDPOINTS.CHANGE_PASSWORD,
+        data
+      );
+
       if (!response.data.success) {
         throw new Error(response.data.message);
       }
@@ -147,9 +152,9 @@ class AuthService {
   async refreshToken(): Promise<void> {
     try {
       const refreshToken = this.getStoredRefreshToken();
-      
+
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        throw new Error("No refresh token available");
       }
 
       const response = await httpClient.post<TokenRefreshResponse>(
@@ -158,7 +163,7 @@ class AuthService {
       );
 
       if (response.data.success) {
-        localStorage.setItem('access_token', response.data.data.access);
+        localStorage.setItem("access_token", response.data.data.access);
       } else {
         throw new Error(response.data.message);
       }
@@ -180,7 +185,7 @@ class AuthService {
    */
   getStoredUser(): User | null {
     try {
-      const userData = localStorage.getItem('user_data');
+      const userData = localStorage.getItem("user_data");
       return userData ? JSON.parse(userData) : null;
     } catch {
       return null;
@@ -192,11 +197,11 @@ class AuthService {
    */
   getUserRole(): UserRole | null {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
       if (!token) return null;
 
       const decoded = this.decodeToken(token);
-      return decoded?.role as UserRole || null;
+      return (decoded?.role as UserRole) || null;
     } catch {
       return null;
     }
@@ -207,7 +212,7 @@ class AuthService {
    */
   decodeToken(token: string): DecodedToken | null {
     try {
-      const payload = token.split('.')[1];
+      const payload = token.split(".")[1];
       const decoded = JSON.parse(atob(payload));
       return decoded;
     } catch {
@@ -220,12 +225,12 @@ class AuthService {
    */
   getRoleBasedRedirect(role: UserRole): string {
     const redirects = {
-      freelancer: '/',
-      client: '/',
-      admin: '/admin',
+      freelancer: "/",
+      client: "/",
+      admin: "/admin",
     };
 
-    return redirects[role] || '/';
+    return redirects[role] || "/";
   }
 
   /**
@@ -240,56 +245,58 @@ class AuthService {
    * Check if user is admin
    */
   isAdmin(): boolean {
-    return this.hasRole('admin');
+    return this.hasRole("admin");
   }
 
   /**
    * Check if user is freelancer
    */
   isFreelancer(): boolean {
-    return this.hasRole('freelancer');
+    return this.hasRole("freelancer");
   }
 
   /**
    * Check if user is client
    */
   isClient(): boolean {
-    return this.hasRole('client');
+    return this.hasRole("client");
   }
 
   // Private helper methods
   private storeUserData(user: User): void {
-    localStorage.setItem('user_data', JSON.stringify(user));
+    localStorage.setItem("user_data", JSON.stringify(user));
   }
 
   private getStoredRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
+    return localStorage.getItem("refresh_token");
   }
 
   private clearAuthData(): void {
     httpClient.clearAllTokens();
-    
+
     // Dispatch logout event for auth context
-    window.dispatchEvent(new CustomEvent('auth:logout'));
+    window.dispatchEvent(new CustomEvent("auth:logout"));
   }
 
   private handleAuthError(error: any): Error {
     if (error.response?.data) {
       const errorData = error.response.data;
-      
+
       if (!errorData.success && errorData.message) {
         return new Error(errorData.message);
       }
-      
+
       if (errorData.errors) {
         // Handle field-specific errors
         const firstError = Object.values(errorData.errors)[0];
-        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        const errorMessage = Array.isArray(firstError)
+          ? firstError[0]
+          : firstError;
         return new Error(errorMessage as string);
       }
     }
 
-    return new Error(error.message || 'An unexpected error occurred');
+    return new Error(error.message || "An unexpected error occurred");
   }
 }
 

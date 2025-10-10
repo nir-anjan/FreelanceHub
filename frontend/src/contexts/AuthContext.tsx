@@ -1,15 +1,21 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService } from '@/services';
-import { 
-  User, 
-  AuthContextType, 
-  LoginRequest, 
-  RegisterRequest, 
-  ProfileUpdateRequest, 
-  PasswordChangeRequest 
-} from '@/types/auth';
-import { toast } from '@/hooks/use-toast';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import { authService } from "@/services";
+import {
+  User,
+  AuthContextType,
+  LoginRequest,
+  RegisterRequest,
+  ProfileUpdateRequest,
+  PasswordChangeRequest,
+} from "@/types/auth";
+import { toast } from "@/hooks/use-toast";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -26,28 +32,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Initialize auth state on app load
   useEffect(() => {
     initializeAuth();
-    
+
     // Listen for logout events from httpClient
     const handleLogout = () => {
       setUser(null);
       setIsAuthenticated(false);
     };
 
-    window.addEventListener('auth:logout', handleLogout);
-    
+    window.addEventListener("auth:logout", handleLogout);
+
     return () => {
-      window.removeEventListener('auth:logout', handleLogout);
+      window.removeEventListener("auth:logout", handleLogout);
     };
   }, []);
 
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
-      
+
       if (authService.isAuthenticated()) {
         // Try to get user profile to verify token validity
         const userData = authService.getStoredUser();
-        
+
         if (userData) {
           setUser(userData);
           setIsAuthenticated(true);
@@ -59,7 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Auth initialization failed:', error);
+      console.error("Auth initialization failed:", error);
       // Clear any invalid tokens
       await authService.logout();
       setUser(null);
@@ -72,27 +78,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginRequest): Promise<void> => {
     try {
       setIsLoading(true);
-      
+
       const response = await authService.login(credentials);
-      
+
       if (response.success) {
         setUser(response.data.user);
         setIsAuthenticated(true);
-        
+
         toast({
-          title: 'Login Successful',
+          title: "Login Successful",
           description: `Welcome back, ${response.data.user.first_name}!`,
         });
 
         // Redirect based on user role
-        const redirectPath = authService.getRoleBasedRedirect(response.data.user.role);
+        const redirectPath = authService.getRoleBasedRedirect(
+          response.data.user.role
+        );
         navigate(redirectPath, { replace: true });
       }
     } catch (error: any) {
       toast({
-        title: 'Login Failed',
-        description: error.message || 'Invalid credentials. Please try again.',
-        variant: 'destructive',
+        title: "Login Failed",
+        description: error.message || "Invalid credentials. Please try again.",
+        variant: "destructive",
       });
       throw error;
     } finally {
@@ -103,13 +111,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterRequest): Promise<void> => {
     try {
       setIsLoading(true);
-      
+
       const response = await authService.register(userData);
-      
+
       if (response.success) {
         toast({
-          title: 'Registration Successful',
-          description: 'Your account has been created. Please log in.',
+          title: "Registration Successful",
+          description: "Your account has been created. Please log in.",
         });
 
         // Automatically log in the user after successful registration
@@ -120,9 +128,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       toast({
-        title: 'Registration Failed',
-        description: error.message || 'Failed to create account. Please try again.',
-        variant: 'destructive',
+        title: "Registration Failed",
+        description:
+          error.message || "Failed to create account. Please try again.",
+        variant: "destructive",
       });
       throw error;
     } finally {
@@ -133,25 +142,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      
+
       await authService.logout();
-      
+
       setUser(null);
       setIsAuthenticated(false);
-      
+
       toast({
-        title: 'Logged Out',
-        description: 'You have been successfully logged out.',
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
       });
 
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
     } catch (error: any) {
-      console.error('Logout error:', error);
-      
+      console.error("Logout error:", error);
+
       // Even if API call fails, clear local state and redirect
       setUser(null);
       setIsAuthenticated(false);
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
     } finally {
       setIsLoading(false);
     }
@@ -160,19 +169,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateProfile = async (data: ProfileUpdateRequest): Promise<void> => {
     try {
       setIsLoading(true);
-      
+
       const updatedUser = await authService.updateProfile(data);
       setUser(updatedUser);
-      
+
       toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully updated.',
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
       });
     } catch (error: any) {
       toast({
-        title: 'Update Failed',
-        description: error.message || 'Failed to update profile. Please try again.',
-        variant: 'destructive',
+        title: "Update Failed",
+        description:
+          error.message || "Failed to update profile. Please try again.",
+        variant: "destructive",
       });
       throw error;
     } finally {
@@ -183,18 +193,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const changePassword = async (data: PasswordChangeRequest): Promise<void> => {
     try {
       setIsLoading(true);
-      
+
       await authService.changePassword(data);
-      
+
       toast({
-        title: 'Password Changed',
-        description: 'Your password has been successfully updated.',
+        title: "Password Changed",
+        description: "Your password has been successfully updated.",
       });
     } catch (error: any) {
       toast({
-        title: 'Password Change Failed',
-        description: error.message || 'Failed to change password. Please try again.',
-        variant: 'destructive',
+        title: "Password Change Failed",
+        description:
+          error.message || "Failed to change password. Please try again.",
+        variant: "destructive",
       });
       throw error;
     } finally {
@@ -206,7 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await authService.refreshToken();
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error("Token refresh failed:", error);
       // Force logout on refresh failure
       await logout();
     }
@@ -225,20 +236,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 
 // Custom hook to use auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  
+
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  
+
   return context;
 };
 
@@ -252,7 +261,7 @@ export const withAuth = <P extends object>(
 
     useEffect(() => {
       if (!isLoading && !isAuthenticated) {
-        navigate('/login', { replace: true });
+        navigate("/login", { replace: true });
       }
     }, [isAuthenticated, isLoading, navigate]);
 

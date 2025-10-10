@@ -1,7 +1,7 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types/auth';
+import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +14,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAuth = true,
   allowedRoles = [],
-  redirectTo = '/login',
+  redirectTo = "/login",
 }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
@@ -48,43 +48,37 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 // Helper function to get dashboard URL based on user role
 const getRoleBasedDashboard = (role: UserRole): string => {
   switch (role) {
-    case 'admin':
-      return '/admin';
-    case 'freelancer':
-      return '/freelancer-dashboard';
-    case 'client':
-      return '/client-dashboard';
+    case "admin":
+      return "/admin";
+    case "freelancer":
+      return "/freelancer-dashboard";
+    case "client":
+      return "/client-dashboard";
     default:
-      return '/';
+      return "/";
   }
 };
 
 // Specific role-based route components for convenience
-export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ProtectedRoute allowedRoles={['admin']}>
-    {children}
-  </ProtectedRoute>
-);
+export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <ProtectedRoute allowedRoles={["admin"]}>{children}</ProtectedRoute>;
 
-export const FreelancerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ProtectedRoute allowedRoles={['freelancer']}>
-    {children}
-  </ProtectedRoute>
-);
+export const FreelancerRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <ProtectedRoute allowedRoles={["freelancer"]}>{children}</ProtectedRoute>;
 
-export const ClientRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ProtectedRoute allowedRoles={['client']}>
-    {children}
-  </ProtectedRoute>
-);
+export const ClientRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <ProtectedRoute allowedRoles={["client"]}>{children}</ProtectedRoute>;
 
-export const AuthenticatedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ProtectedRoute requireAuth={true}>
-    {children}
-  </ProtectedRoute>
-);
+export const AuthenticatedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <ProtectedRoute requireAuth={true}>{children}</ProtectedRoute>;
 
-export const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const GuestRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
@@ -98,7 +92,8 @@ export const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // If user is authenticated, redirect to their dashboard
   if (isAuthenticated && user) {
-    const from = location.state?.from?.pathname || getRoleBasedDashboard(user.role);
+    const from =
+      location.state?.from?.pathname || getRoleBasedDashboard(user.role);
     return <Navigate to={from} replace />;
   }
 
