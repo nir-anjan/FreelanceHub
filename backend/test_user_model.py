@@ -37,9 +37,15 @@ def test_user_model():
     print("\nDatabase schema check:")
     try:
         with connection.cursor() as cursor:
-            cursor.execute("PRAGMA table_info(api_auth_user);")
+            # PostgreSQL syntax to get column information
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'api_auth_user'
+                ORDER BY ordinal_position;
+            """)
             columns = cursor.fetchall()
-            column_names = [col[1] for col in columns]
+            column_names = [col[0] for col in columns]
             print("Database columns:")
             for col in column_names:
                 print(f"  - {col}")
