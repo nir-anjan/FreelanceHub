@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     
     # Local apps
     # (Removed `api` app references — package deleted)
+    "api",
 ]
 
 MIDDLEWARE = [
