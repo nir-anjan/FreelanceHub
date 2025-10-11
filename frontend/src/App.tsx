@@ -58,22 +58,8 @@ const App = () => (
             <Route path="/freelancers/:id" element={<FreelancerProfile />} />
 
             {/* Admin Only Routes */}
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/jobs"
-              element={
-                <AdminRoute>
-                  <AdminJobs />
-                </AdminRoute>
-              }
-            />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/jobs" element={<AdminJobs />} />
 
             {/* Protected Routes (require authentication but any role) */}
             <Route

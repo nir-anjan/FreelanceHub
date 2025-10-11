@@ -17,6 +17,7 @@ from .serializers import (
     UserProfileUpdateSerializer,
     PasswordChangeSerializer,
     TokenSerializer
+    , FreelancerCreateSerializer, FreelancerSerializer, ClientCreateSerializer, ClientSerializer
 )
 from api.common.responses import StandardResponseMixin, get_client_ip
 from api.common.permissions import IsAdminUser
@@ -286,6 +287,50 @@ class UserListAPIView(APIView, StandardResponseMixin):
             data=serializer.data,
             status_code=status.HTTP_200_OK
         )
+
+
+class CreateRoleProfileAPIView(APIView, StandardResponseMixin):
+    """Create a freelancer or client profile for the authenticated user based on their role."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        if user.role == 'freelancer':
+            serializer = FreelancerCreateSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                freelancer = serializer.save()
+                return self.success_response(
+                    message='Freelancer profile created successfully',
+                    data=FreelancerSerializer(freelancer).data,
+                    status_code=status.HTTP_201_CREATED
+                )
+            return self.error_response(
+                message='Freelancer profile creation failed',
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        elif user.role == 'client':
+            serializer = ClientCreateSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                client = serializer.save()
+                return self.success_response(
+                    message='Client profile created successfully',
+                    data=ClientSerializer(client).data,
+                    status_code=status.HTTP_201_CREATED
+                )
+            return self.error_response(
+                message='Client profile creation failed',
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        else:
+            return self.error_response(
+                message='User role is neither freelancer nor client',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class CustomTokenRefreshView(TokenRefreshView, StandardResponseMixin):

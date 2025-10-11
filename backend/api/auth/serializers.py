@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
+from .models import Freelancer, Client
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -255,3 +256,92 @@ class TokenSerializer(serializers.Serializer):
         Not implemented - this is for response only
         """
         raise NotImplementedError("TokenSerializer is read-only")
+
+
+class FreelancerCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a Freelancer profile linked to the authenticated user."""
+    user_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = Freelancer
+        fields = ('id', 'user_id', 'title', 'category', 'rate', 'skills', 'bio', 'location', 'created_at')
+        read_only_fields = ('id', 'created_at')
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError('Request context is required.')
+
+        user = request.user
+
+        # If user_id provided, ensure it matches authenticated user
+        provided_user_id = attrs.pop('user_id', None)
+        if provided_user_id is not None and provided_user_id != user.id:
+            raise serializers.ValidationError({'user_id': 'Authenticated user does not match provided user_id.'})
+
+        # Ensure user role is freelancer
+        if user.role != 'freelancer':
+            raise serializers.ValidationError('User role is not "freelancer".')
+
+        # Ensure freelancer profile does not already exist
+        if hasattr(user, 'freelancer_profile'):
+            raise serializers.ValidationError('Freelancer profile already exists for this user.')
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = request.user
+        freelancer = Freelancer.objects.create(user=user, **validated_data)
+        return freelancer
+
+
+class FreelancerSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Freelancer
+        fields = ('id', 'user', 'title', 'category', 'rate', 'skills', 'bio', 'location', 'created_at')
+
+
+class ClientCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a Client profile linked to the authenticated user."""
+    user_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = Client
+        fields = ('id', 'user_id', 'company_name', 'created_at')
+        read_only_fields = ('id', 'created_at')
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError('Request context is required.')
+
+        user = request.user
+
+        provided_user_id = attrs.pop('user_id', None)
+        if provided_user_id is not None and provided_user_id != user.id:
+            raise serializers.ValidationError({'user_id': 'Authenticated user does not match provided user_id.'})
+
+        if user.role != 'client':
+            raise serializers.ValidationError('User role is not "client".')
+
+        if hasattr(user, 'client_profile'):
+            raise serializers.ValidationError('Client profile already exists for this user.')
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = request.user
+        client = Client.objects.create(user=user, **validated_data)
+        return client
+
+
+class ClientSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Client
+        fields = ('id', 'user', 'company_name', 'created_at')

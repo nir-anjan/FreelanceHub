@@ -10,6 +10,7 @@ from .views import (
     PasswordChangeAPIView,
     UserListAPIView,
     CustomTokenRefreshView,
+    CreateRoleProfileAPIView,
 )
 
 app_name = 'auth'
@@ -25,6 +26,7 @@ urlpatterns = [
     
     # Profile management
     path('profile/', ProfileAPIView.as_view(), name='profile'),
+    path('profile/create-role/', CreateRoleProfileAPIView.as_view(), name='create_role_profile'),
     path('password/change/', PasswordChangeAPIView.as_view(), name='password_change'),
     
     # Token management
