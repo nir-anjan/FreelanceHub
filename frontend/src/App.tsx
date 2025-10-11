@@ -21,6 +21,15 @@ import FreelancerProfile from "./pages/FreelancerProfile";
 import NotFound from "./pages/NotFound";
 import { AdminDashboard } from "./admin/pages/AdminDashboard";
 import { AdminJobs } from "./admin/pages/AdminJobs";
+// Dashboard Components
+import DashboardLayout from "./components/DashboardLayout";
+import Dashboard from "./pages/Dashboard";
+import JobForm from "./pages/JobForm";
+import JobHistory from "./pages/JobHistory";
+import ActiveJobs from "./pages/ActiveJobs";
+import Inbox from "./pages/Inbox";
+import ChatWindow from "./pages/ChatWindow";
+import PaymentHistory from "./pages/PaymentHistory";
 
 const queryClient = new QueryClient();
 
@@ -80,14 +89,30 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Dashboard Routes */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <div>Dashboard (Coming Soon)</div>
+                  <DashboardLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              {/* Default dashboard route */}
+              <Route index element={<Dashboard />} />
+
+              {/* Client-specific routes */}
+              <Route path="create-job" element={<JobForm />} />
+              <Route path="jobs" element={<JobHistory />} />
+
+              {/* Freelancer-specific routes */}
+              <Route path="active-jobs" element={<ActiveJobs />} />
+
+              {/* Shared routes */}
+              <Route path="inbox" element={<Inbox />} />
+              <Route path="inbox/:threadId" element={<ChatWindow />} />
+              <Route path="payments" element={<PaymentHistory />} />
+            </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

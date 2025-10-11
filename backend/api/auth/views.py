@@ -8,7 +8,8 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 
-from .models import User, Freelancer, Client
+from .models import User, Freelancer, Client, ChatThread, ChatMessage, Job, Payment
+from django.db import models
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -518,3 +519,585 @@ class CustomTokenRefreshView(TokenRefreshView, StandardResponseMixin):
             data=serializer.validated_data,
             status_code=status.HTTP_200_OK
         )
+
+
+# ---------------------- DASHBOARD VIEWS -------------------------
+
+class DashboardAPIView(APIView, StandardResponseMixin):
+    """
+    Dashboard overview for authenticated users
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get dashboard overview data based on user role
+        """
+        user = request.user
+        data = {
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'profile_picture': user.profile_picture,
+            },
+            'stats': {}
+        }
+        
+        if user.is_client:
+            client_profile = getattr(user, 'client_profile', None)
+            if client_profile:
+                # Get client stats
+                jobs_count = client_profile.jobs.count()
+                active_jobs = client_profile.jobs.filter(status='in_progress').count()
+                completed_jobs = client_profile.jobs.filter(status='completed').count()
+                total_spent = client_profile.payments.filter(status='completed').aggregate(
+                    total=models.Sum('amount')
+                )['total'] or 0
+                
+                data['stats'] = {
+                    'total_jobs_posted': jobs_count,
+                    'active_jobs': active_jobs,
+                    'completed_jobs': completed_jobs,
+                    'total_spent': float(total_spent),
+                    'unread_messages': 0  # TODO: implement message counts
+                }
+        
+        elif user.is_freelancer:
+            freelancer_profile = getattr(user, 'freelancer_profile', None)
+            if freelancer_profile:
+                # Get freelancer stats
+                total_earned = freelancer_profile.payments.filter(status='completed').aggregate(
+                    total=models.Sum('amount')
+                )['total'] or 0
+                
+                data['stats'] = {
+                    'total_earned': float(total_earned),
+                    'active_jobs': 0,  # TODO: implement when job applications are added
+                    'completed_jobs': freelancer_profile.payments.filter(status='completed').count(),
+                    'unread_messages': 0  # TODO: implement message counts
+                }
+        
+        return self.success_response(
+            message="Dashboard data retrieved successfully",
+            data=data
+        )
+
+
+# ---------------------- JOB MANAGEMENT VIEWS -------------------------
+
+class JobCreateAPIView(APIView, StandardResponseMixin):
+    """
+    Create new job (Clients only)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """
+        Create a new job posting
+        """
+        user = request.user
+        
+        # Check if user is a client
+        if not user.is_client:
+            return self.error_response(
+                message="Only clients can create job postings",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        client_profile = getattr(user, 'client_profile', None)
+        if not client_profile:
+            return self.error_response(
+                message="Client profile not found. Please complete your profile setup.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create job with client association
+        from .models import Job
+        job_data = request.data.copy()
+        
+        # Validate required fields
+        required_fields = ['title', 'description']
+        for field in required_fields:
+            if not job_data.get(field):
+                return self.error_response(
+                    message=f"Field '{field}' is required",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+        
+        try:
+            job = Job.objects.create(
+                client=client_profile,
+                title=job_data.get('title'),
+                description=job_data.get('description'),
+                budget_min=job_data.get('budget_min'),
+                budget_max=job_data.get('budget_max'),
+                duration=job_data.get('duration'),
+                category=job_data.get('category'),
+                skills=job_data.get('skills'),
+                requirements=job_data.get('requirements'),
+                project_details=job_data.get('project_details'),
+            )
+            
+            job_response = {
+                'id': job.id,
+                'title': job.title,
+                'description': job.description,
+                'budget_min': float(job.budget_min) if job.budget_min else None,
+                'budget_max': float(job.budget_max) if job.budget_max else None,
+                'duration': job.duration,
+                'category': job.category,
+                'skills': job.skills,
+                'requirements': job.requirements,
+                'project_details': job.project_details,
+                'status': job.status,
+                'proposals_count': job.proposals_count,
+                'created_at': job.created_at.isoformat(),
+            }
+            
+            return self.success_response(
+                message="Job created successfully",
+                data=job_response,
+                status_code=status.HTTP_201_CREATED
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error creating job: {str(e)}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class JobHistoryAPIView(APIView, StandardResponseMixin):
+    """
+    Get job history for clients
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get all jobs posted by the client
+        """
+        user = request.user
+        
+        if not user.is_client:
+            return self.error_response(
+                message="Only clients can access job history",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        client_profile = getattr(user, 'client_profile', None)
+        if not client_profile:
+            return self.error_response(
+                message="Client profile not found",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        jobs = client_profile.jobs.all().order_by('-created_at')
+        
+        jobs_data = []
+        for job in jobs:
+            jobs_data.append({
+                'id': job.id,
+                'title': job.title,
+                'description': job.description,
+                'budget_min': float(job.budget_min) if job.budget_min else None,
+                'budget_max': float(job.budget_max) if job.budget_max else None,
+                'duration': job.duration,
+                'category': job.category,
+                'status': job.status,
+                'proposals_count': job.proposals_count,
+                'created_at': job.created_at.isoformat(),
+            })
+        
+        return self.success_response(
+            message="Job history retrieved successfully",
+            data={
+                'jobs': jobs_data,
+                'total_count': len(jobs_data)
+            }
+        )
+
+
+class ActiveJobsAPIView(APIView, StandardResponseMixin):
+    """
+    Get active jobs for freelancers
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get active jobs for freelancer (jobs they're working on)
+        """
+        user = request.user
+        
+        if not user.is_freelancer:
+            return self.error_response(
+                message="Only freelancers can access active jobs",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        freelancer_profile = getattr(user, 'freelancer_profile', None)
+        if not freelancer_profile:
+            return self.error_response(
+                message="Freelancer profile not found",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # For now, get jobs where freelancer has payments (indicating they're working on it)
+        # TODO: Implement proper job application/assignment system
+        from .models import Job
+        active_jobs = Job.objects.filter(
+            payments__freelancer=freelancer_profile,
+            status__in=['in_progress', 'open']
+        ).distinct().order_by('-created_at')
+        
+        jobs_data = []
+        for job in active_jobs:
+            jobs_data.append({
+                'id': job.id,
+                'title': job.title,
+                'description': job.description,
+                'budget_min': float(job.budget_min) if job.budget_min else None,
+                'budget_max': float(job.budget_max) if job.budget_max else None,
+                'duration': job.duration,
+                'category': job.category,
+                'status': job.status,
+                'client': {
+                    'id': job.client.id,
+                    'name': job.client.user.get_full_name(),
+                    'company_name': job.client.company_name,
+                },
+                'created_at': job.created_at.isoformat(),
+            })
+        
+        return self.success_response(
+            message="Active jobs retrieved successfully",
+            data={
+                'jobs': jobs_data,
+                'total_count': len(jobs_data)
+            }
+        )
+
+
+# ---------------------- PAYMENT VIEWS -------------------------
+
+class PaymentHistoryAPIView(APIView, StandardResponseMixin):
+    """
+    Get payment history for authenticated user
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get payment history based on user role
+        """
+        user = request.user
+        payments_data = []
+        
+        if user.is_client:
+            client_profile = getattr(user, 'client_profile', None)
+            if client_profile:
+                payments = client_profile.payments.all().order_by('-created_at')
+                for payment in payments:
+                    payments_data.append({
+                        'id': payment.id,
+                        'amount': float(payment.amount),
+                        'currency': payment.currency,
+                        'status': payment.status,
+                        'payment_method': payment.payment_method,
+                        'transaction_id': payment.transaction_id,
+                        'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+                        'created_at': payment.created_at.isoformat(),
+                        'job': {
+                            'id': payment.job.id,
+                            'title': payment.job.title,
+                        },
+                        'freelancer': {
+                            'id': payment.freelancer.id,
+                            'name': payment.freelancer.user.get_full_name(),
+                        },
+                        'type': 'payment_made'
+                    })
+        
+        elif user.is_freelancer:
+            freelancer_profile = getattr(user, 'freelancer_profile', None)
+            if freelancer_profile:
+                payments = freelancer_profile.payments.all().order_by('-created_at')
+                for payment in payments:
+                    payments_data.append({
+                        'id': payment.id,
+                        'amount': float(payment.amount),
+                        'currency': payment.currency,
+                        'status': payment.status,
+                        'payment_method': payment.payment_method,
+                        'transaction_id': payment.transaction_id,
+                        'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+                        'created_at': payment.created_at.isoformat(),
+                        'job': {
+                            'id': payment.job.id,
+                            'title': payment.job.title,
+                        },
+                        'client': {
+                            'id': payment.client.id,
+                            'name': payment.client.user.get_full_name(),
+                            'company_name': payment.client.company_name,
+                        },
+                        'type': 'payment_received'
+                    })
+        
+        # Calculate totals
+        total_amount = sum(p['amount'] for p in payments_data if p['status'] == 'completed')
+        
+        return self.success_response(
+            message="Payment history retrieved successfully",
+            data={
+                'payments': payments_data,
+                'total_count': len(payments_data),
+                'total_amount': total_amount,
+                'currency': 'INR'
+            }
+        )
+
+
+# ---------------------- INBOX VIEWS -------------------------
+
+class InboxAPIView(APIView, StandardResponseMixin):
+    """
+    Get all chat threads for authenticated user
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get all chat threads where user is participant
+        """
+        user = request.user
+        threads_data = []
+        
+        if user.is_client:
+            client_profile = getattr(user, 'client_profile', None)
+            if client_profile:
+                threads = client_profile.chat_threads.all().order_by('-created_at')
+                for thread in threads:
+                    # Get last message
+                    last_message = thread.messages.last()
+                    threads_data.append({
+                        'id': thread.id,
+                        'other_user': {
+                            'id': thread.freelancer.user.id,
+                            'name': thread.freelancer.user.get_full_name(),
+                            'role': 'freelancer',
+                            'profile_picture': thread.freelancer.user.profile_picture,
+                        },
+                        'job': {
+                            'id': thread.job.id,
+                            'title': thread.job.title,
+                        } if thread.job else None,
+                        'last_message': {
+                            'id': last_message.id,
+                            'message': last_message.message,
+                            'sender': last_message.sender.get_full_name(),
+                            'sent_at': last_message.sent_at.isoformat(),
+                        } if last_message else None,
+                        'created_at': thread.created_at.isoformat(),
+                        'unread_count': 0  # TODO: implement unread message counting
+                    })
+        
+        elif user.is_freelancer:
+            freelancer_profile = getattr(user, 'freelancer_profile', None)
+            if freelancer_profile:
+                threads = freelancer_profile.chat_threads.all().order_by('-created_at')
+                for thread in threads:
+                    # Get last message
+                    last_message = thread.messages.last()
+                    threads_data.append({
+                        'id': thread.id,
+                        'other_user': {
+                            'id': thread.client.user.id,
+                            'name': thread.client.user.get_full_name(),
+                            'role': 'client',
+                            'profile_picture': thread.client.user.profile_picture,
+                            'company_name': thread.client.company_name,
+                        },
+                        'job': {
+                            'id': thread.job.id,
+                            'title': thread.job.title,
+                        } if thread.job else None,
+                        'last_message': {
+                            'id': last_message.id,
+                            'message': last_message.message,
+                            'sender': last_message.sender.get_full_name(),
+                            'sent_at': last_message.sent_at.isoformat(),
+                        } if last_message else None,
+                        'created_at': thread.created_at.isoformat(),
+                        'unread_count': 0  # TODO: implement unread message counting
+                    })
+        
+        return self.success_response(
+            message="Inbox retrieved successfully",
+            data={
+                'threads': threads_data,
+                'total_count': len(threads_data)
+            }
+        )
+
+
+class ChatMessagesAPIView(APIView, StandardResponseMixin):
+    """
+    Get messages for a specific chat thread and send new messages
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, thread_id):
+        """
+        Get all messages for a chat thread
+        """
+        user = request.user
+        
+        try:
+            thread = ChatThread.objects.get(id=thread_id)
+            
+            # Check if user is participant in this thread
+            if user.is_client:
+                client_profile = getattr(user, 'client_profile', None)
+                if not client_profile or thread.client != client_profile:
+                    return self.error_response(
+                        message="Access denied",
+                        status_code=status.HTTP_403_FORBIDDEN
+                    )
+            elif user.is_freelancer:
+                freelancer_profile = getattr(user, 'freelancer_profile', None)
+                if not freelancer_profile or thread.freelancer != freelancer_profile:
+                    return self.error_response(
+                        message="Access denied",
+                        status_code=status.HTTP_403_FORBIDDEN
+                    )
+            else:
+                return self.error_response(
+                    message="Access denied",
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+            
+            messages = thread.messages.all().order_by('sent_at')
+            messages_data = []
+            
+            for message in messages:
+                messages_data.append({
+                    'id': message.id,
+                    'message': message.message,
+                    'sender': {
+                        'id': message.sender.id,
+                        'name': message.sender.get_full_name(),
+                        'role': message.sender.role,
+                        'profile_picture': message.sender.profile_picture,
+                    },
+                    'sent_at': message.sent_at.isoformat(),
+                    'is_own_message': message.sender == user
+                })
+            
+            # Get thread info
+            thread_info = {
+                'id': thread.id,
+                'client': {
+                    'id': thread.client.user.id,
+                    'name': thread.client.user.get_full_name(),
+                    'company_name': thread.client.company_name,
+                },
+                'freelancer': {
+                    'id': thread.freelancer.user.id,
+                    'name': thread.freelancer.user.get_full_name(),
+                },
+                'job': {
+                    'id': thread.job.id,
+                    'title': thread.job.title,
+                } if thread.job else None,
+                'created_at': thread.created_at.isoformat(),
+            }
+            
+            return self.success_response(
+                message="Messages retrieved successfully",
+                data={
+                    'thread': thread_info,
+                    'messages': messages_data,
+                    'total_count': len(messages_data)
+                }
+            )
+            
+        except ChatThread.DoesNotExist:
+            return self.error_response(
+                message="Chat thread not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+    
+    def post(self, request, thread_id):
+        """
+        Send a new message in a chat thread
+        """
+        user = request.user
+        message_text = request.data.get('message', '').strip()
+        
+        if not message_text:
+            return self.error_response(
+                message="Message content is required",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            thread = ChatThread.objects.get(id=thread_id)
+            
+            # Check if user is participant in this thread
+            if user.is_client:
+                client_profile = getattr(user, 'client_profile', None)
+                if not client_profile or thread.client != client_profile:
+                    return self.error_response(
+                        message="Access denied",
+                        status_code=status.HTTP_403_FORBIDDEN
+                    )
+            elif user.is_freelancer:
+                freelancer_profile = getattr(user, 'freelancer_profile', None)
+                if not freelancer_profile or thread.freelancer != freelancer_profile:
+                    return self.error_response(
+                        message="Access denied",
+                        status_code=status.HTTP_403_FORBIDDEN
+                    )
+            else:
+                return self.error_response(
+                    message="Access denied",
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Create new message
+            message = ChatMessage.objects.create(
+                thread=thread,
+                sender=user,
+                message=message_text
+            )
+            
+            message_data = {
+                'id': message.id,
+                'message': message.message,
+                'sender': {
+                    'id': message.sender.id,
+                    'name': message.sender.get_full_name(),
+                    'role': message.sender.role,
+                    'profile_picture': message.sender.profile_picture,
+                },
+                'sent_at': message.sent_at.isoformat(),
+                'is_own_message': True
+            }
+            
+            return self.success_response(
+                message="Message sent successfully",
+                data=message_data,
+                status_code=status.HTTP_201_CREATED
+            )
+            
+        except ChatThread.DoesNotExist:
+            return self.error_response(
+                message="Chat thread not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )

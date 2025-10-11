@@ -51,9 +51,8 @@ const getRoleBasedDashboard = (role: UserRole): string => {
     case "admin":
       return "/admin";
     case "freelancer":
-      return "/freelancer-dashboard";
     case "client":
-      return "/client-dashboard";
+      return "/dashboard";
     default:
       return "/";
   }

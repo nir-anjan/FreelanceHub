@@ -11,6 +11,14 @@ from .views import (
     UserListAPIView,
     CustomTokenRefreshView,
     CreateRoleProfileAPIView,
+    # Dashboard views
+    DashboardAPIView,
+    JobCreateAPIView,
+    JobHistoryAPIView,
+    ActiveJobsAPIView,
+    PaymentHistoryAPIView,
+    InboxAPIView,
+    ChatMessagesAPIView,
 )
 
 app_name = 'auth'
@@ -36,4 +44,19 @@ urlpatterns = [
     
     # Admin endpoints
     path('users/', UserListAPIView.as_view(), name='user_list'),
+    
+    # Dashboard endpoints
+    path('dashboard/', DashboardAPIView.as_view(), name='dashboard'),
+    
+    # Job management endpoints
+    path('jobs/create/', JobCreateAPIView.as_view(), name='job_create'),
+    path('jobs/history/', JobHistoryAPIView.as_view(), name='job_history'),
+    path('jobs/active/', ActiveJobsAPIView.as_view(), name='active_jobs'),
+    
+    # Payment endpoints
+    path('payments/history/', PaymentHistoryAPIView.as_view(), name='payment_history'),
+    
+    # Inbox endpoints
+    path('inbox/', InboxAPIView.as_view(), name='inbox'),
+    path('inbox/<int:thread_id>/messages/', ChatMessagesAPIView.as_view(), name='chat_messages'),
 ]
