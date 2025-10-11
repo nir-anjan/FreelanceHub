@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'corsheaders',
     
     # Local apps
-    'api.auth.apps.AuthConfig',
+    # (Removed `api` app references — package deleted)
 ]
 
 MIDDLEWARE = [
@@ -143,7 +143,8 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model
-AUTH_USER_MODEL = 'api_auth.User'
+# Reverted to default Django user model as the `api` package is removed
+AUTH_USER_MODEL = 'auth.User'
 
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
@@ -158,7 +159,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'EXCEPTION_HANDLER': 'api.common.exceptions.custom_exception_handler',
+    # Custom exception handler removed (was in the deleted `api.common` package)
 }
 
 # Simple JWT Configuration
