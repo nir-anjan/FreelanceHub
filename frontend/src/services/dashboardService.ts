@@ -14,42 +14,40 @@ import {
 export const dashboardService = {
   // Dashboard overview
   async getDashboard(): Promise<DashboardResponse> {
-    const response = await httpClient.get("/api/auth/dashboard/");
+    const response = await httpClient.get("/auth/dashboard/");
     return response.data;
   },
 
   // Job management
   async createJob(jobData: JobCreateRequest): Promise<JobCreateResponse> {
-    const response = await httpClient.post("/api/auth/jobs/create/", jobData);
+    const response = await httpClient.post("/auth/jobs/create/", jobData);
     return response.data;
   },
 
   async getJobHistory(): Promise<JobHistoryResponse> {
-    const response = await httpClient.get("/api/auth/jobs/history/");
+    const response = await httpClient.get("/auth/jobs/history/");
     return response.data;
   },
 
   async getActiveJobs(): Promise<JobHistoryResponse> {
-    const response = await httpClient.get("/api/auth/jobs/active/");
+    const response = await httpClient.get("/auth/jobs/active/");
     return response.data;
   },
 
   // Payment history
   async getPaymentHistory(): Promise<PaymentHistoryApiResponse> {
-    const response = await httpClient.get("/api/auth/payments/history/");
+    const response = await httpClient.get("/auth/payments/history/");
     return response.data;
   },
 
   // Inbox and chat
   async getInbox(): Promise<InboxApiResponse> {
-    const response = await httpClient.get("/api/auth/inbox/");
+    const response = await httpClient.get("/auth/inbox/");
     return response.data;
   },
 
   async getChatMessages(threadId: number): Promise<ChatMessagesApiResponse> {
-    const response = await httpClient.get(
-      `/api/auth/inbox/${threadId}/messages/`
-    );
+    const response = await httpClient.get(`/auth/inbox/${threadId}/messages/`);
     return response.data;
   },
 
@@ -58,7 +56,7 @@ export const dashboardService = {
     messageData: SendMessageRequest
   ): Promise<SendMessageResponse> {
     const response = await httpClient.post(
-      `/api/auth/inbox/${threadId}/messages/`,
+      `/auth/inbox/${threadId}/messages/`,
       messageData
     );
     return response.data;
