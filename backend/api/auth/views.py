@@ -1101,3 +1101,164 @@ class ChatMessagesAPIView(APIView, StandardResponseMixin):
                 message="Chat thread not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
+
+
+# ---------------------- PUBLIC LISTING ENDPOINTS ----------------------
+
+class AllJobsAPIView(APIView, StandardResponseMixin):
+    """
+    Public endpoint to list all available jobs
+    Accessible to both authenticated and unauthenticated users
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """
+        Get all open job listings with filtering and pagination
+        """
+        try:
+            # Start with open jobs by default
+            jobs = Job.objects.filter(status='open').select_related('client__user').order_by('-created_at')
+            
+            # Apply filters from query parameters
+            category = request.GET.get('category')
+            if category:
+                jobs = jobs.filter(category__icontains=category)
+            
+            skills = request.GET.get('skills')
+            if skills:
+                jobs = jobs.filter(skills__icontains=skills)
+            
+            status_param = request.GET.get('status')
+            if status_param:
+                jobs = jobs.filter(status=status_param)
+            
+            min_budget = request.GET.get('min_budget')
+            if min_budget:
+                try:
+                    jobs = jobs.filter(budget_min__gte=float(min_budget))
+                except ValueError:
+                    pass
+            
+            max_budget = request.GET.get('max_budget')
+            if max_budget:
+                try:
+                    jobs = jobs.filter(budget_max__lte=float(max_budget))
+                except ValueError:
+                    pass
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = jobs.count()
+            jobs_page = jobs[start:end]
+            
+            # Serialize the jobs
+            from .serializers import JobListSerializer
+            serializer = JobListSerializer(jobs_page, many=True)
+            
+            return self.success_response(
+                message="Jobs retrieved successfully",
+                data={
+                    'jobs': serializer.data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving jobs: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AllFreelancersAPIView(APIView, StandardResponseMixin):
+    """
+    Public endpoint to list all freelancers
+    Accessible to both authenticated and unauthenticated users
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """
+        Get all freelancer profiles with filtering and pagination
+        """
+        try:
+            # Get all freelancers with user data
+            freelancers = Freelancer.objects.select_related('user').order_by('-created_at')
+            
+            # Apply filters from query parameters
+            category = request.GET.get('category')
+            if category:
+                freelancers = freelancers.filter(category__icontains=category)
+            
+            skills = request.GET.get('skills')
+            if skills:
+                freelancers = freelancers.filter(skills__icontains=skills)
+            
+            location = request.GET.get('location')
+            if location:
+                freelancers = freelancers.filter(location__icontains=location)
+            
+            min_rate = request.GET.get('rate_min')
+            if min_rate:
+                try:
+                    freelancers = freelancers.filter(rate__gte=float(min_rate))
+                except ValueError:
+                    pass
+                    
+            max_rate = request.GET.get('rate_max')
+            if max_rate:
+                try:
+                    freelancers = freelancers.filter(rate__lte=float(max_rate))
+                except ValueError:
+                    pass
+            
+            # Ordering
+            ordering = request.GET.get('ordering', '-created_at')
+            if ordering in ['-created_at', 'created_at', 'rate', '-rate']:
+                freelancers = freelancers.order_by(ordering)
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = freelancers.count()
+            freelancers_page = freelancers[start:end]
+            
+            # Serialize the freelancers
+            from .serializers import FreelancerListSerializer
+            serializer = FreelancerListSerializer(freelancers_page, many=True)
+            
+            return self.success_response(
+                message="Freelancers retrieved successfully",
+                data={
+                    'freelancers': serializer.data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving freelancers: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

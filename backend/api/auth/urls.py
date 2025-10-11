@@ -19,6 +19,9 @@ from .views import (
     PaymentHistoryAPIView,
     InboxAPIView,
     ChatMessagesAPIView,
+    # Public listing views
+    AllJobsAPIView,
+    AllFreelancersAPIView,
 )
 
 app_name = 'auth'
@@ -59,4 +62,8 @@ urlpatterns = [
     # Inbox endpoints
     path('inbox/', InboxAPIView.as_view(), name='inbox'),
     path('inbox/<int:thread_id>/messages/', ChatMessagesAPIView.as_view(), name='chat_messages'),
+    
+    # Public listing endpoints
+    path('jobs/', AllJobsAPIView.as_view(), name='all_jobs'),
+    path('freelancers/', AllFreelancersAPIView.as_view(), name='all_freelancers'),
 ]

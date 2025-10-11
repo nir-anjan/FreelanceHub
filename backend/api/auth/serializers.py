@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
-from .models import Freelancer, Client
+from .models import Freelancer, Client, Job
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -345,3 +345,58 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ('id', 'user', 'company_name', 'created_at')
+
+
+# ---------------------- JOB LISTING SERIALIZERS ----------------------
+class JobListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for job listings"""
+    client_name = serializers.CharField(source='client.user.get_full_name', read_only=True)
+    client_username = serializers.CharField(source='client.user.username', read_only=True)
+    skills_list = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Job
+        fields = (
+            'id', 'title', 'description', 'category', 'budget_min', 'budget_max', 
+            'duration', 'status', 'skills_list', 'created_at', 'proposals_count',
+            'client_name', 'client_username'
+        )
+    
+    def get_skills_list(self, obj):
+        """Convert skills field to list format"""
+        if obj.skills:
+            # Handle both comma-separated and JSON array formats
+            try:
+                import json
+                return json.loads(obj.skills) if obj.skills.startswith('[') else obj.skills.split(',')
+            except:
+                return obj.skills.split(',') if ',' in obj.skills else [obj.skills]
+        return []
+
+
+class FreelancerListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for freelancer listings"""
+    name = serializers.CharField(source='user.get_full_name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    profile_picture = serializers.CharField(source='user.profile_picture', read_only=True)
+    bio = serializers.CharField(source='user.bio', read_only=True)
+    skills_list = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Freelancer
+        fields = (
+            'id', 'name', 'username', 'email', 'title', 'category', 'rate', 
+            'skills_list', 'location', 'profile_picture', 'bio', 'created_at'
+        )
+    
+    def get_skills_list(self, obj):
+        """Convert skills field to list format"""
+        if obj.skills:
+            # Handle both comma-separated and JSON array formats
+            try:
+                import json
+                return json.loads(obj.skills) if obj.skills.startswith('[') else obj.skills.split(',')
+            except:
+                return obj.skills.split(',') if ',' in obj.skills else [obj.skills]
+        return []
