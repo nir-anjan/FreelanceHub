@@ -12,6 +12,8 @@ import {
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import ProfileSetup from "./pages/ProfileSetup";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
 import Freelancers from "./pages/Freelancers";
@@ -66,7 +68,15 @@ const App = () => (
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <div>Profile Page (Coming Soon)</div>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile-setup"
+              element={
+                <ProtectedRoute>
+                  <ProfileSetup />
                 </ProtectedRoute>
               }
             />

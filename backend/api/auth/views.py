@@ -8,7 +8,7 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 
-from .models import User
+from .models import User, Freelancer, Client
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -193,47 +193,237 @@ class LogoutAPIView(APIView, StandardResponseMixin):
 
 class ProfileAPIView(APIView, StandardResponseMixin):
     """
-    API endpoint for user profile operations
+    API endpoint for comprehensive user profile operations (user + role-specific profile)
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """
-        Get current user profile
+        Get current user profile including role-specific profile
         """
-        serializer = UserProfileSerializer(request.user)
+        user = request.user
+        user_data = UserProfileSerializer(user).data
+        
+        # Add role-specific profile data
+        role_profile = None
+        if user.role == 'freelancer':
+            try:
+                freelancer = user.freelancer_profile
+                role_profile = FreelancerSerializer(freelancer).data
+            except Freelancer.DoesNotExist:
+                role_profile = None
+        elif user.role == 'client':
+            try:
+                client = user.client_profile
+                role_profile = ClientSerializer(client).data
+            except Client.DoesNotExist:
+                role_profile = None
+        
+        # Combine user and role profile data
+        profile_data = {
+            'user': user_data,
+            'role_profile': role_profile,
+            'has_role_profile': role_profile is not None
+        }
         
         return self.success_response(
             message="Profile retrieved successfully",
-            data=serializer.data,
+            data=profile_data,
             status_code=status.HTTP_200_OK
         )
     
     def put(self, request):
         """
-        Update current user profile
+        Update current user profile and/or role-specific profile
         """
-        serializer = UserProfileUpdateSerializer(
-            request.user,
-            data=request.data,
-            partial=True
-        )
+        user = request.user
         
-        if serializer.is_valid():
-            user = serializer.save()
-            profile_data = UserProfileSerializer(user).data
-            
-            return self.success_response(
-                message="Profile updated successfully",
-                data=profile_data,
-                status_code=status.HTTP_200_OK
+        # Extract user profile data and role profile data from request
+        user_data = {}
+        role_data = {}
+        
+        # Fields that belong to user profile
+        user_fields = ['first_name', 'last_name', 'phone', 'bio', 'profile_picture']
+        for field in user_fields:
+            if field in request.data:
+                user_data[field] = request.data[field]
+        
+        # Fields that belong to role profile
+        if user.role == 'freelancer':
+            role_fields = ['title', 'category', 'rate', 'skills', 'bio', 'location']
+            for field in role_fields:
+                if field in request.data:
+                    role_data[field] = request.data[field]
+        elif user.role == 'client':
+            role_fields = ['company_name']
+            for field in role_fields:
+                if field in request.data:
+                    role_data[field] = request.data[field]
+        
+        # Update user profile if user data provided
+        if user_data:
+            user_serializer = UserProfileUpdateSerializer(
+                user,
+                data=user_data,
+                partial=True
             )
+            if not user_serializer.is_valid():
+                return self.error_response(
+                    message="User profile update failed",
+                    errors=user_serializer.errors,
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            user_serializer.save()
         
-        return self.error_response(
-            message="Profile update failed",
-            errors=serializer.errors,
-            status_code=status.HTTP_400_BAD_REQUEST
+        # Update or create role profile if role data provided
+        role_profile = None
+        if role_data:
+            if user.role == 'freelancer':
+                try:
+                    # Update existing freelancer profile
+                    freelancer = user.freelancer_profile
+                    for field, value in role_data.items():
+                        setattr(freelancer, field, value)
+                    freelancer.save()
+                    role_profile = FreelancerSerializer(freelancer).data
+                except Freelancer.DoesNotExist:
+                    # Create new freelancer profile
+                    role_serializer = FreelancerCreateSerializer(
+                        data=role_data,
+                        context={'request': request}
+                    )
+                    if role_serializer.is_valid():
+                        freelancer = role_serializer.save()
+                        role_profile = FreelancerSerializer(freelancer).data
+                    else:
+                        return self.error_response(
+                            message="Freelancer profile creation failed",
+                            errors=role_serializer.errors,
+                            status_code=status.HTTP_400_BAD_REQUEST
+                        )
+            
+            elif user.role == 'client':
+                try:
+                    # Update existing client profile
+                    client = user.client_profile
+                    for field, value in role_data.items():
+                        setattr(client, field, value)
+                    client.save()
+                    role_profile = ClientSerializer(client).data
+                except Client.DoesNotExist:
+                    # Create new client profile
+                    role_serializer = ClientCreateSerializer(
+                        data=role_data,
+                        context={'request': request}
+                    )
+                    if role_serializer.is_valid():
+                        client = role_serializer.save()
+                        role_profile = ClientSerializer(client).data
+                    else:
+                        return self.error_response(
+                            message="Client profile creation failed",
+                            errors=role_serializer.errors,
+                            status_code=status.HTTP_400_BAD_REQUEST
+                        )
+        
+        # Return updated profile data
+        updated_user = User.objects.get(id=user.id)  # Refresh user data
+        user_profile_data = UserProfileSerializer(updated_user).data
+        
+        # Get current role profile if not updated
+        if not role_profile:
+            if user.role == 'freelancer':
+                try:
+                    freelancer = updated_user.freelancer_profile
+                    role_profile = FreelancerSerializer(freelancer).data
+                except Freelancer.DoesNotExist:
+                    role_profile = None
+            elif user.role == 'client':
+                try:
+                    client = updated_user.client_profile
+                    role_profile = ClientSerializer(client).data
+                except Client.DoesNotExist:
+                    role_profile = None
+        
+        profile_data = {
+            'user': user_profile_data,
+            'role_profile': role_profile,
+            'has_role_profile': role_profile is not None
+        }
+        
+        return self.success_response(
+            message="Profile updated successfully",
+            data=profile_data,
+            status_code=status.HTTP_200_OK
         )
+    
+    def post(self, request):
+        """
+        Create role-specific profile (for backwards compatibility)
+        """
+        user = request.user
+        
+        if user.role == 'freelancer':
+            try:
+                # Check if profile already exists
+                user.freelancer_profile
+                return self.error_response(
+                    message='Freelancer profile already exists',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            except Freelancer.DoesNotExist:
+                serializer = FreelancerCreateSerializer(data=request.data, context={'request': request})
+                if serializer.is_valid():
+                    freelancer = serializer.save()
+                    profile_data = {
+                        'user': UserProfileSerializer(user).data,
+                        'role_profile': FreelancerSerializer(freelancer).data,
+                        'has_role_profile': True
+                    }
+                    return self.success_response(
+                        message='Freelancer profile created successfully',
+                        data=profile_data,
+                        status_code=status.HTTP_201_CREATED
+                    )
+                return self.error_response(
+                    message='Freelancer profile creation failed',
+                    errors=serializer.errors,
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+        elif user.role == 'client':
+            try:
+                # Check if profile already exists
+                user.client_profile
+                return self.error_response(
+                    message='Client profile already exists',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            except Client.DoesNotExist:
+                serializer = ClientCreateSerializer(data=request.data, context={'request': request})
+                if serializer.is_valid():
+                    client = serializer.save()
+                    profile_data = {
+                        'user': UserProfileSerializer(user).data,
+                        'role_profile': ClientSerializer(client).data,
+                        'has_role_profile': True
+                    }
+                    return self.success_response(
+                        message='Client profile created successfully',
+                        data=profile_data,
+                        status_code=status.HTTP_201_CREATED
+                    )
+                return self.error_response(
+                    message='Client profile creation failed',
+                    errors=serializer.errors,
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+        else:
+            return self.error_response(
+                message='User role is neither freelancer nor client',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class PasswordChangeAPIView(APIView, StandardResponseMixin):
@@ -289,48 +479,22 @@ class UserListAPIView(APIView, StandardResponseMixin):
         )
 
 
+# CreateRoleProfileAPIView functionality has been integrated into ProfileAPIView above
+# This view is kept for backwards compatibility if needed, but can be removed
 class CreateRoleProfileAPIView(APIView, StandardResponseMixin):
-    """Create a freelancer or client profile for the authenticated user based on their role."""
+    """
+    DEPRECATED: Use ProfileAPIView instead.
+    Create or get freelancer/client profile for the authenticated user based on their role.
+    """
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        """Redirect to ProfileAPIView"""
+        return ProfileAPIView().get(request)
+
     def post(self, request):
-        user = request.user
-
-        if user.role == 'freelancer':
-            serializer = FreelancerCreateSerializer(data=request.data, context={'request': request})
-            if serializer.is_valid():
-                freelancer = serializer.save()
-                return self.success_response(
-                    message='Freelancer profile created successfully',
-                    data=FreelancerSerializer(freelancer).data,
-                    status_code=status.HTTP_201_CREATED
-                )
-            return self.error_response(
-                message='Freelancer profile creation failed',
-                errors=serializer.errors,
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-
-        elif user.role == 'client':
-            serializer = ClientCreateSerializer(data=request.data, context={'request': request})
-            if serializer.is_valid():
-                client = serializer.save()
-                return self.success_response(
-                    message='Client profile created successfully',
-                    data=ClientSerializer(client).data,
-                    status_code=status.HTTP_201_CREATED
-                )
-            return self.error_response(
-                message='Client profile creation failed',
-                errors=serializer.errors,
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-
-        else:
-            return self.error_response(
-                message='User role is neither freelancer nor client',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
+        """Redirect to ProfileAPIView"""
+        return ProfileAPIView().post(request)
 
 
 class CustomTokenRefreshView(TokenRefreshView, StandardResponseMixin):

@@ -47,6 +47,39 @@ export interface ProfileUpdateRequest {
   profile_picture?: string;
 }
 
+// Role-specific profile types
+export interface FreelancerProfile {
+  id: number;
+  user: number;
+  title?: string;
+  category?: string;
+  rate?: string;
+  skills?: string;
+  bio?: string;
+  location?: string;
+  created_at: string;
+}
+
+export interface ClientProfile {
+  id: number;
+  user: number;
+  company_name?: string;
+  created_at: string;
+}
+
+export interface FreelancerCreateRequest {
+  title?: string;
+  category?: string;
+  rate?: string;
+  skills?: string;
+  bio?: string;
+  location?: string;
+}
+
+export interface ClientCreateRequest {
+  company_name?: string;
+}
+
 // Authentication Response Types
 export interface AuthResponse {
   success: boolean;
@@ -111,7 +144,10 @@ export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginRequest) => Promise<void>;
+  login: (
+    credentials: LoginRequest,
+    isFromRegistration?: boolean
+  ) => Promise<void>;
   register: (userData: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: ProfileUpdateRequest) => Promise<void>;

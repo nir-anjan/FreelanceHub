@@ -24,8 +24,9 @@ urlpatterns = [
     # Admin authentication
     path('admin/login/', AdminLoginAPIView.as_view(), name='admin_login'),
     
-    # Profile management
+    # Profile management (unified endpoint handles both user and role-specific profiles)
     path('profile/', ProfileAPIView.as_view(), name='profile'),
+    # Deprecated: Use 'profile/' endpoint instead. Kept for backwards compatibility.
     path('profile/create-role/', CreateRoleProfileAPIView.as_view(), name='create_role_profile'),
     path('password/change/', PasswordChangeAPIView.as_view(), name='password_change'),
     

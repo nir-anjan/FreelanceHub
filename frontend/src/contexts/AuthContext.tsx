@@ -75,7 +75,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (credentials: LoginRequest): Promise<void> => {
+  const login = async (
+    credentials: LoginRequest,
+    isFromRegistration = false
+  ): Promise<void> => {
     try {
       setIsLoading(true);
 
@@ -90,11 +93,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           description: `Welcome back, ${response.data.user.first_name}!`,
         });
 
-        // Redirect based on user role
-        const redirectPath = authService.getRoleBasedRedirect(
-          response.data.user.role
-        );
-        navigate(redirectPath, { replace: true });
+        // If coming from registration, always redirect to profile setup for freelancers/clients
+        if (
+          isFromRegistration &&
+          (response.data.user.role === "freelancer" ||
+            response.data.user.role === "client")
+        ) {
+          navigate("/profile-setup", { replace: true });
+        } else if (
+          !isFromRegistration &&
+          (response.data.user.role === "freelancer" ||
+            response.data.user.role === "client")
+        ) {
+          // For normal login, check if user has completed profile setup
+          try {
+            const hasProfile = await authService.hasRoleProfile();
+            if (!hasProfile) {
+              navigate("/profile-setup", { replace: true });
+            } else {
+              const redirectPath = authService.getRoleBasedRedirect(
+                response.data.user.role
+              );
+              navigate(redirectPath, { replace: true });
+            }
+          } catch (error) {
+            // If check fails, redirect to profile setup to be safe
+            navigate("/profile-setup", { replace: true });
+          }
+        } else {
+          // For admin users, redirect normally
+          const redirectPath = authService.getRoleBasedRedirect(
+            response.data.user.role
+          );
+          navigate(redirectPath, { replace: true });
+        }
       }
     } catch (error: any) {
       toast({
@@ -117,14 +149,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success) {
         toast({
           title: "Registration Successful",
-          description: "Your account has been created. Please log in.",
+          description:
+            "Your account has been created. Let's set up your profile!",
         });
 
         // Automatically log in the user after successful registration
-        await login({
-          username: userData.username,
-          password: userData.password,
-        });
+        await login(
+          {
+            username: userData.username,
+            password: userData.password,
+          },
+          true
+        ); // Pass true to indicate this is from registration
       }
     } catch (error: any) {
       toast({

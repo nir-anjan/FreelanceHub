@@ -20,6 +20,7 @@ class AuthService {
     REGISTER: "/auth/register/",
     LOGOUT: "/auth/logout/",
     PROFILE: "/auth/profile/",
+    CREATE_ROLE_PROFILE: "/auth/profile/create-role/",
     REFRESH_TOKEN: "/auth/token/refresh/",
     CHANGE_PASSWORD: "/auth/password/change/",
   };
@@ -88,16 +89,15 @@ class AuthService {
   }
 
   /**
-   * Get current user profile
+   * Get current user profile (including role-specific profile)
    */
-  async getProfile(): Promise<User> {
+  async getProfile(): Promise<any> {
     try {
-      const response = await httpClient.get<ProfileResponse>(
-        this.ENDPOINTS.PROFILE
-      );
+      const response = await httpClient.get(this.ENDPOINTS.PROFILE);
 
       if (response.data.success) {
-        this.storeUserData(response.data.data);
+        // Store the user data from the combined response
+        this.storeUserData(response.data.data.user);
         return response.data.data;
       }
 
@@ -108,21 +108,60 @@ class AuthService {
   }
 
   /**
-   * Update user profile
+   * Update user profile (and/or role-specific profile)
    */
-  async updateProfile(data: ProfileUpdateRequest): Promise<User> {
+  async updateProfile(data: any): Promise<any> {
     try {
-      const response = await httpClient.put<ProfileResponse>(
-        this.ENDPOINTS.PROFILE,
-        data
-      );
+      const response = await httpClient.put(this.ENDPOINTS.PROFILE, data);
 
       if (response.data.success) {
-        this.storeUserData(response.data.data);
+        // Store the user data from the combined response
+        this.storeUserData(response.data.data.user);
         return response.data.data;
       }
 
       throw new Error(response.data.message);
+    } catch (error: any) {
+      throw this.handleAuthError(error);
+    }
+  }
+
+  /**
+   * Create role-specific profile (freelancer/client) using the combined profile endpoint
+   */
+  async createRoleProfile(data: any): Promise<any> {
+    try {
+      const response = await httpClient.post(this.ENDPOINTS.PROFILE, data);
+
+      if (response.data.success) {
+        return response.data.data;
+      }
+
+      throw new Error(response.data.message);
+    } catch (error: any) {
+      throw this.handleAuthError(error);
+    }
+  }
+
+  /**
+   * Check if user has completed role-specific profile setup
+   */
+  async hasRoleProfile(): Promise<boolean> {
+    try {
+      const profileData = await this.getProfile();
+      return profileData.has_role_profile || false;
+    } catch (error: any) {
+      return false;
+    }
+  }
+
+  /**
+   * Get role-specific profile data (freelancer/client)
+   */
+  async getRoleProfile(): Promise<any> {
+    try {
+      const profileData = await this.getProfile();
+      return profileData.role_profile || null;
     } catch (error: any) {
       throw this.handleAuthError(error);
     }
