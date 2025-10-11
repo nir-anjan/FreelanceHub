@@ -31,3 +31,16 @@ __pycache__/
 *.pyc
 *.pyo
 *$py.class
+
+# SQLite database (if using locally)
+db.sqlite3
+
+# Django migrations (optional - usually you keep these)
+# **/migrations/*.py
+# !**/migrations/__init__.py
+
+# Django secret keys and local settings
+*.log
+local_settings.py
+.env
+.env.
