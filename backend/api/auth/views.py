@@ -550,16 +550,16 @@ class DashboardAPIView(APIView, StandardResponseMixin):
         if user.is_client:
             client_profile = getattr(user, 'client_profile', None)
             if client_profile:
-                # Get client stats
-                jobs_count = client_profile.jobs.count()
-                active_jobs = client_profile.jobs.filter(status='in_progress').count()
+                # Get client stats - filter by actual job status
+                total_jobs_posted = client_profile.jobs.filter(status='open').count()
+                active_jobs = client_profile.jobs.filter(status='in_progress').count()  # Using 'in_progress' as that's what exists in the model
                 completed_jobs = client_profile.jobs.filter(status='completed').count()
                 total_spent = client_profile.payments.filter(status='completed').aggregate(
                     total=models.Sum('amount')
                 )['total'] or 0
                 
                 data['stats'] = {
-                    'total_jobs_posted': jobs_count,
+                    'total_jobs_posted': total_jobs_posted,
                     'active_jobs': active_jobs,
                     'completed_jobs': completed_jobs,
                     'total_spent': float(total_spent),
