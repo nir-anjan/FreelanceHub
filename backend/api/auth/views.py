@@ -1512,24 +1512,38 @@ class AdminUsersAPIView(APIView, StandardResponseMixin):
                     'first_name': user.first_name,
                     'last_name': user.last_name,
                     'role': user.role,
+                    'phone': user.phone,
                     'is_active': user.is_active,
                     'created_at': user.created_at.isoformat(),
                     'last_login': user.last_login.isoformat() if user.last_login else None
                 }
                 
-                # Add role-specific data
+                # Add role-specific data with job statistics
                 if user.role == 'freelancer' and hasattr(user, 'freelancer_profile'):
                     freelancer = user.freelancer_profile
+                    # Calculate total jobs done (completed jobs assigned to freelancer)
+                    # Note: This would require a job assignment system. For now, we'll use payments as proxy
+                    total_jobs_done = freelancer.payments.filter(status='completed').count()
+                    
                     user_data['freelancer_data'] = {
                         'title': freelancer.title,
                         'category': freelancer.category,
                         'rate': float(freelancer.rate) if freelancer.rate else None,
-                        'location': freelancer.location
+                        'skills': freelancer.skills,
+                        'location': freelancer.location,
+                        'bio': freelancer.bio,
+                        'total_jobs_done': total_jobs_done
                     }
                 elif user.role == 'client' and hasattr(user, 'client_profile'):
                     client = user.client_profile
+                    # Calculate job statistics
+                    total_jobs_posted = client.jobs.exclude(status='cancelled').count()
+                    completed_jobs = client.jobs.filter(status='completed').count()
+                    
                     user_data['client_data'] = {
-                        'company_name': client.company_name
+                        'company_name': client.company_name,
+                        'total_jobs_posted': total_jobs_posted,
+                        'completed_jobs': completed_jobs
                     }
                 
                 users_data.append(user_data)

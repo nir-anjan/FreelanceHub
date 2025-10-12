@@ -21,6 +21,7 @@ import FreelancerProfile from "./pages/FreelancerProfile";
 import NotFound from "./pages/NotFound";
 import { AdminDashboard } from "./admin/pages/AdminDashboard";
 import { AdminJobs } from "./admin/pages/AdminJobs";
+import { AdminUsers } from "./admin/pages/AdminUsers";
 import AdminLogin from "./admin/pages/AdminLogin";
 // Dashboard Components
 import DashboardLayout from "./components/DashboardLayout";
@@ -91,6 +92,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminJobs />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AdminUsers />
                 </AdminRoute>
               }
             />

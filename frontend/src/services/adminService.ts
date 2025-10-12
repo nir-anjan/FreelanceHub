@@ -86,6 +86,7 @@ export interface AdminUser {
   first_name: string;
   last_name: string;
   role: string;
+  phone: string | null;
   is_active: boolean;
   created_at: string;
   last_login: string | null;
@@ -93,10 +94,15 @@ export interface AdminUser {
     title: string;
     category: string;
     rate: number | null;
+    skills: string;
     location: string;
+    bio: string;
+    total_jobs_done: number;
   };
   client_data?: {
     company_name: string;
+    total_jobs_posted: number;
+    completed_jobs: number;
   };
 }
 
