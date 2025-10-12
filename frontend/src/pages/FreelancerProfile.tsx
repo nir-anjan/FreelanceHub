@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ChatWindow from "@/components/ChatWindow";
@@ -7,7 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, MapPin, ArrowLeft, Mail, Award } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Star,
+  MapPin,
+  ArrowLeft,
+  Mail,
+  Award,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
+import publicListingsService, {
+  FreelancerDetail,
+} from "@/services/publicListingsService";
 
 // Mock data for freelancer profiles
 const mockFreelancers: Record<string, any> = {
@@ -151,11 +163,49 @@ const mockFreelancers: Record<string, any> = {
 };
 
 const FreelancerProfile = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [freelancer, setFreelancer] = useState<FreelancerDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const freelancer = mockFreelancers[id || "1"] || mockFreelancers["1"];
+  // Fetch freelancer details
+  useEffect(() => {
+    const fetchFreelancerDetails = async () => {
+      if (!id) {
+        setError("Freelancer ID not provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await publicListingsService.getFreelancerById(
+          parseInt(id)
+        );
+
+        if (response.success) {
+          setFreelancer(response.data);
+        } else {
+          setError(response.message || "Failed to fetch freelancer details");
+        }
+      } catch (err: any) {
+        console.error("Error fetching freelancer details:", err);
+        if (err.response?.status === 404) {
+          setError("Freelancer not found or no longer available");
+        } else {
+          setError("Error loading freelancer details. Please try again.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFreelancerDetails();
+  }, [id]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -169,6 +219,64 @@ const FreelancerProfile = () => {
       />
     ));
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50/50 to-white">
+        <Header />
+        <main className="flex-grow">
+          <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  Loading freelancer profile...
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50/50 to-white">
+        <Header />
+        <main className="flex-grow">
+          <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // No freelancer found
+  if (!freelancer) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50/50 to-white">
+        <Header />
+        <main className="flex-grow">
+          <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>Freelancer not found.</AlertDescription>
+            </Alert>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50/50 to-white">
@@ -191,7 +299,10 @@ const FreelancerProfile = () => {
             <CardContent className="p-6 md:p-8">
               <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                 <Avatar className="h-32 w-32 border-4 border-primary/10">
-                  <AvatarImage src={freelancer.avatar} alt={freelancer.name} />
+                  <AvatarImage
+                    src={freelancer.profile_picture || "/placeholder.svg"}
+                    alt={freelancer.name}
+                  />
                   <AvatarFallback className="text-3xl">
                     {freelancer.name.charAt(0)}
                   </AvatarFallback>
@@ -207,12 +318,12 @@ const FreelancerProfile = () => {
 
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-4">
                     <div className="flex items-center gap-1">
-                      {renderStars(freelancer.rating)}
+                      {renderStars(4.5)}
                       <span className="ml-2 font-medium text-foreground">
-                        {freelancer.rating.toFixed(1)}
+                        4.5
                       </span>
                       <span className="text-muted-foreground">
-                        ({freelancer.reviewCount} reviews)
+                        (12 reviews)
                       </span>
                     </div>
 
@@ -226,7 +337,7 @@ const FreelancerProfile = () => {
                     <div className="flex items-center gap-2">
                       <Award className="h-5 w-5 text-accent" />
                       <span className="text-sm text-muted-foreground">
-                        {freelancer.completedProjects} projects completed
+                        25 projects completed
                       </span>
                     </div>
                   </div>
@@ -235,7 +346,7 @@ const FreelancerProfile = () => {
                 <div className="flex flex-col items-center md:items-end gap-3">
                   <div className="text-center md:text-right">
                     <div className="text-3xl font-bold text-primary">
-                      ${freelancer.hourlyRate}
+                      ${freelancer.rate}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       per hour
@@ -273,13 +384,13 @@ const FreelancerProfile = () => {
                 Skills & Expertise
               </h2>
               <div className="flex flex-wrap gap-2">
-                {freelancer.skills.map((skill: string) => (
+                {freelancer.skills.split(",").map((skill: string) => (
                   <Badge
-                    key={skill}
+                    key={skill.trim()}
                     variant="secondary"
                     className="px-4 py-2 text-sm font-medium"
                   >
-                    {skill}
+                    {skill.trim()}
                   </Badge>
                 ))}
               </div>
@@ -292,26 +403,10 @@ const FreelancerProfile = () => {
               <h2 className="text-2xl font-semibold text-foreground mb-6">
                 Portfolio
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {freelancer.portfolio.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="group cursor-pointer overflow-hidden rounded-xl bg-muted"
-                  >
-                    <div className="aspect-video relative overflow-hidden">
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      />
-                    </div>
-                    <div className="p-4 bg-card">
-                      <h3 className="font-medium text-foreground">
-                        {item.title}
-                      </h3>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  Portfolio items will be available soon.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -322,30 +417,10 @@ const FreelancerProfile = () => {
               <h2 className="text-2xl font-semibold text-foreground mb-6">
                 Client Reviews
               </h2>
-              <div className="space-y-6">
-                {freelancer.reviews.map((review: any) => (
-                  <div
-                    key={review.id}
-                    className="border border-border rounded-xl p-6 bg-card/50"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {review.clientName}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {review.date}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {renderStars(review.rating)}
-                      </div>
-                    </div>
-                    <p className="text-muted-foreground leading-relaxed">
-                      {review.comment}
-                    </p>
-                  </div>
-                ))}
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  Reviews will be available soon.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -359,7 +434,7 @@ const FreelancerProfile = () => {
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         freelancerName={freelancer.name}
-        freelancerAvatar={freelancer.avatar}
+        freelancerAvatar={freelancer.profile_picture || "/placeholder.svg"}
       />
     </div>
   );

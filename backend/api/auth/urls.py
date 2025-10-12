@@ -23,6 +23,7 @@ from .views import (
     AllJobsAPIView,
     AllFreelancersAPIView,
     JobDetailAPIView,
+    FreelancerDetailAPIView,
     # Admin views
     AdminOverviewAPIView,
     AdminJobModerationAPIView,
@@ -78,6 +79,7 @@ urlpatterns = [
     path('jobs/', AllJobsAPIView.as_view(), name='all_jobs'),
     path('jobs/<int:job_id>/', JobDetailAPIView.as_view(), name='job_detail'),
     path('freelancers/', AllFreelancersAPIView.as_view(), name='all_freelancers'),
+    path('freelancers/<int:freelancer_id>/', FreelancerDetailAPIView.as_view(), name='freelancer_detail'),
     
     # Admin endpoints
     path('admin/overview/', AdminOverviewAPIView.as_view(), name='admin_overview'),

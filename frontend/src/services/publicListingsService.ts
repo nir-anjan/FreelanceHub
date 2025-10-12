@@ -53,6 +53,21 @@ export interface Freelancer {
   created_at: string;
 }
 
+export interface FreelancerDetail extends Freelancer {
+  user_id: number;
+  skills: string;
+  user_created_at: string;
+  last_login: string | null;
+  is_active: boolean;
+  email_verified: boolean;
+}
+
+export interface FreelancerDetailResponse {
+  success: boolean;
+  message: string;
+  data: FreelancerDetail;
+}
+
 export interface PaginationInfo {
   current_page: number;
   page_size: number;
@@ -148,7 +163,9 @@ export const publicListingsService = {
         ...new Set(
           response.data.jobs
             .map((job) => job.category)
-            .filter((category): category is string => Boolean(category && category.trim() !== ""))
+            .filter((category): category is string =>
+              Boolean(category && category.trim() !== "")
+            )
         ),
       ];
       return categories.sort();
@@ -166,7 +183,9 @@ export const publicListingsService = {
         ...new Set(
           response.data.freelancers
             .map((freelancer) => freelancer.category)
-            .filter((category): category is string => Boolean(category && category.trim() !== ""))
+            .filter((category): category is string =>
+              Boolean(category && category.trim() !== "")
+            )
         ),
       ];
       return categories.sort();
@@ -219,6 +238,14 @@ export const publicListingsService = {
   // Get job details by ID
   async getJobById(jobId: number): Promise<JobDetailResponse> {
     const response = await httpClient.get(`/auth/jobs/${jobId}/`);
+    return response.data;
+  },
+
+  // Get freelancer details by ID
+  async getFreelancerById(
+    freelancerId: number
+  ): Promise<FreelancerDetailResponse> {
+    const response = await httpClient.get(`/auth/freelancers/${freelancerId}/`);
     return response.data;
   },
 };

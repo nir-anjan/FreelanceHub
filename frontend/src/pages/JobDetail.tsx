@@ -2,17 +2,33 @@ import { useParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, DollarSign, Clock, Briefcase, Send, Loader2, AlertTriangle } from "lucide-react";
+import {
+  MapPin,
+  DollarSign,
+  Clock,
+  Briefcase,
+  Send,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import publicListingsService, { JobDetail as JobDetailType } from "@/services/publicListingsService";
+import publicListingsService, {
+  JobDetail as JobDetailType,
+} from "@/services/publicListingsService";
 
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,9 +50,9 @@ const JobDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await publicListingsService.getJobById(parseInt(id));
-        
+
         if (response.success) {
           setJob(response.data);
         } else {
@@ -61,7 +77,8 @@ const JobDetail = () => {
     e.preventDefault();
     toast({
       title: "Proposal submitted!",
-      description: "The client will review your proposal and get back to you soon.",
+      description:
+        "The client will review your proposal and get back to you soon.",
     });
     setProposal("");
     setBidAmount("");
@@ -126,7 +143,7 @@ const JobDetail = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1 bg-muted/30">
         <div className="container mx-auto px-4 py-8">
           <div className="grid lg:grid-cols-3 gap-8">
@@ -141,7 +158,9 @@ const JobDetail = () => {
                     </span>
                   </div>
                   <CardTitle className="text-3xl mb-2">{job.title}</CardTitle>
-                  <CardDescription className="text-base">{job.description}</CardDescription>
+                  <CardDescription className="text-base">
+                    {job.description}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -150,28 +169,37 @@ const JobDetail = () => {
                       <div>
                         <p className="text-xs text-muted-foreground">Budget</p>
                         <p className="font-semibold">
-                          {publicListingsService.formatBudget(job.budget_min, job.budget_max)}
+                          {publicListingsService.formatBudget(
+                            job.budget_min,
+                            job.budget_max
+                          )}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="text-xs text-muted-foreground">
+                          Duration
+                        </p>
                         <p className="font-semibold">{job.duration}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Location</p>
+                        <p className="text-xs text-muted-foreground">
+                          Location
+                        </p>
                         <p className="font-semibold">Remote</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Briefcase className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Proposals</p>
+                        <p className="text-xs text-muted-foreground">
+                          Proposals
+                        </p>
                         <p className="font-semibold">{job.proposals_count}</p>
                       </div>
                     </div>
@@ -180,7 +208,9 @@ const JobDetail = () => {
                   <Separator />
 
                   <div>
-                    <h3 className="font-semibold text-lg mb-3">Project Details</h3>
+                    <h3 className="font-semibold text-lg mb-3">
+                      Project Details
+                    </h3>
                     <p className="text-muted-foreground whitespace-pre-line">
                       {job.project_details || job.description}
                     </p>
@@ -190,7 +220,9 @@ const JobDetail = () => {
 
                   {job.requirements && (
                     <div>
-                      <h3 className="font-semibold text-lg mb-3">Requirements</h3>
+                      <h3 className="font-semibold text-lg mb-3">
+                        Requirements
+                      </h3>
                       <div className="text-muted-foreground whitespace-pre-line">
                         {job.requirements}
                       </div>
@@ -200,7 +232,9 @@ const JobDetail = () => {
                   <Separator />
 
                   <div>
-                    <h3 className="font-semibold text-lg mb-3">Skills Required</h3>
+                    <h3 className="font-semibold text-lg mb-3">
+                      Skills Required
+                    </h3>
                     <div className="flex flex-wrap gap-2">
                       {job.skills_list.map((skill, index) => (
                         <Badge key={index} variant="outline">
@@ -262,15 +296,22 @@ const JobDetail = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <p className="font-semibold">{job.client.name}</p>
-                    <p className="text-sm text-muted-foreground">@{job.client.username}</p>
-                    {job.client.company_name && job.client.company_name !== job.client.name && (
-                      <p className="text-sm text-muted-foreground">{job.client.company_name}</p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      @{job.client.username}
+                    </p>
+                    {job.client.company_name &&
+                      job.client.company_name !== job.client.name && (
+                        <p className="text-sm text-muted-foreground">
+                          {job.client.company_name}
+                        </p>
+                      )}
                   </div>
                   <Separator />
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Member Since</span>
+                      <span className="text-muted-foreground">
+                        Member Since
+                      </span>
                       <span className="font-medium">
                         {new Date(job.client.created_at).toLocaleDateString()}
                       </span>

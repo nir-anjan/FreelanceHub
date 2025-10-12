@@ -1864,3 +1864,60 @@ class JobDetailAPIView(APIView, StandardResponseMixin):
                 message=f"Error retrieving job details: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class FreelancerDetailAPIView(APIView, StandardResponseMixin):
+    """
+    API endpoint to fetch freelancer details by ID for public access
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, freelancer_id):
+        """
+        Get freelancer details by ID
+        """
+        try:
+            # Get the freelancer by ID with related user information
+            freelancer = Freelancer.objects.select_related('user').get(
+                id=freelancer_id,
+                user__is_active=True  # Only show active freelancers
+            )
+            
+            # Prepare freelancer data
+            freelancer_data = {
+                'id': freelancer.id,
+                'user_id': freelancer.user.id,
+                'name': f"{freelancer.user.first_name} {freelancer.user.last_name}".strip(),
+                'username': freelancer.user.username,
+                'email': freelancer.user.email,
+                'title': freelancer.title,
+                'category': freelancer.category,
+                'rate': float(freelancer.rate) if freelancer.rate else None,
+                'skills': freelancer.skills,
+                'skills_list': [skill.strip() for skill in freelancer.skills.split(',')] if freelancer.skills else [],
+                'bio': freelancer.bio,
+                'location': freelancer.location,
+                'profile_picture': freelancer.user.profile_picture,
+                'created_at': freelancer.created_at.isoformat(),
+                'user_created_at': freelancer.user.date_joined.isoformat(),
+                'last_login': freelancer.user.last_login.isoformat() if freelancer.user.last_login else None,
+                'is_active': freelancer.user.is_active,
+                'email_verified': freelancer.user.email_verified,
+            }
+            
+            return self.success_response(
+                data=freelancer_data,
+                message="Freelancer details retrieved successfully"
+            )
+            
+        except Freelancer.DoesNotExist:
+            return self.error_response(
+                message="Freelancer not found or no longer available",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving freelancer details: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
