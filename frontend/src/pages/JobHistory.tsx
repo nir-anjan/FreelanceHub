@@ -62,21 +62,32 @@ const JobHistory: React.FC = () => {
         variant: "default" as const,
         icon: Clock,
         label: "Open",
+        className: undefined as string | undefined,
+      },
+      pending: {
+        variant: "secondary" as const,
+        icon: AlertCircle,
+        label: "Pending Approval",
+        className:
+          "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300",
       },
       in_progress: {
         variant: "secondary" as const,
         icon: Users,
         label: "In Progress",
+        className: undefined as string | undefined,
       },
       completed: {
         variant: "default" as const,
         icon: CheckCircle,
         label: "Completed",
+        className: undefined as string | undefined,
       },
       cancelled: {
         variant: "destructive" as const,
         icon: XCircle,
         label: "Cancelled",
+        className: undefined as string | undefined,
       },
     };
 
@@ -85,7 +96,10 @@ const JobHistory: React.FC = () => {
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center space-x-1">
+      <Badge
+        variant={config.variant}
+        className={`flex items-center space-x-1 ${config.className || ""}`}
+      >
         <Icon className="h-3 w-3" />
         <span>{config.label}</span>
       </Badge>
@@ -147,7 +161,7 @@ const JobHistory: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
@@ -157,6 +171,22 @@ const JobHistory: React.FC = () => {
                   Total Jobs
                 </p>
                 <p className="text-2xl font-bold">{jobs.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold">
+                  {jobs.filter((job) => job.status === "pending").length}
+                </p>
               </div>
             </div>
           </CardContent>

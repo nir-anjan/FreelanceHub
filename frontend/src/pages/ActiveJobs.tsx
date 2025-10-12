@@ -16,6 +16,7 @@ import {
   Building,
   User,
   MessageSquare,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -50,23 +51,34 @@ const ActiveJobs: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      pending: {
+        variant: "secondary" as const,
+        icon: AlertCircle,
+        label: "Pending Approval",
+        color: "bg-yellow-100 text-yellow-800",
+        className:
+          "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300",
+      },
       open: {
         variant: "default" as const,
         icon: Clock,
         label: "Open",
         color: "bg-blue-100 text-blue-800",
+        className: undefined as string | undefined,
       },
       in_progress: {
         variant: "secondary" as const,
         icon: Clock,
         label: "In Progress",
         color: "bg-yellow-100 text-yellow-800",
+        className: undefined as string | undefined,
       },
       completed: {
         variant: "default" as const,
         icon: CheckCircle,
         label: "Completed",
         color: "bg-green-100 text-green-800",
+        className: undefined as string | undefined,
       },
     };
 
@@ -75,7 +87,10 @@ const ActiveJobs: React.FC = () => {
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center space-x-1">
+      <Badge
+        variant={config.variant}
+        className={`flex items-center space-x-1 ${config.className || ""}`}
+      >
         <Icon className="h-3 w-3" />
         <span>{config.label}</span>
       </Badge>

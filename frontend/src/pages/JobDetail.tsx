@@ -152,7 +152,28 @@ const JobDetail = () => {
               <Card className="shadow-card">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4 mb-4">
-                    <Badge variant="secondary">{job.category}</Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary">{job.category}</Badge>
+                      {job.status === "pending" && (
+                        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300">
+                          Pending Approval
+                        </Badge>
+                      )}
+                      {job.status === "open" && (
+                        <Badge variant="default">Open</Badge>
+                      )}
+                      {job.status === "in_progress" && (
+                        <Badge variant="secondary">In Progress</Badge>
+                      )}
+                      {job.status === "completed" && (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+                          Completed
+                        </Badge>
+                      )}
+                      {job.status === "cancelled" && (
+                        <Badge variant="destructive">Cancelled</Badge>
+                      )}
+                    </div>
                     <span className="text-sm text-muted-foreground">
                       {publicListingsService.getRelativeTime(job.created_at)}
                     </span>

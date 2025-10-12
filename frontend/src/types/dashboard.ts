@@ -37,7 +37,7 @@ export interface Job {
   skills?: string;
   requirements?: string;
   project_details?: string;
-  status: "open" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "open" | "in_progress" | "completed" | "cancelled";
   proposals_count: number;
   created_at: string;
   client?: {
