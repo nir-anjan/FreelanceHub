@@ -43,9 +43,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'channels',
     
     # Local apps
     'api.auth.apps.AuthConfig',
+    'chat',
 ]
 
 MIDDLEWARE = [
@@ -227,3 +229,16 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
 ]
+
+# ASGI Configuration
+ASGI_APPLICATION = 'backend.asgi.application'
+
+# Channel Layers Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
