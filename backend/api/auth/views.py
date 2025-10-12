@@ -1803,3 +1803,64 @@ class AdminPaymentsAPIView(APIView, StandardResponseMixin):
                 message=f"Error retrieving payments: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class JobDetailAPIView(APIView, StandardResponseMixin):
+    """
+    API endpoint to fetch job details by ID for public access
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, job_id):
+        """
+        Get job details by ID
+        """
+        try:
+            # Get the job by ID, ensuring it's active/open
+            job = Job.objects.select_related('client__user').get(
+                id=job_id, 
+                status__in=['open', 'in_progress']  # Only show active jobs
+            )
+            
+            # Prepare job data
+            job_data = {
+                'id': job.id,
+                'title': job.title,
+                'description': job.description,
+                'budget_min': float(job.budget_min) if job.budget_min else None,
+                'budget_max': float(job.budget_max) if job.budget_max else None,
+                'duration': job.duration,
+                'category': job.category,
+                'skills': job.skills,
+                'skills_list': [skill.strip() for skill in job.skills.split(',')] if job.skills else [],
+                'requirements': job.requirements,
+                'project_details': job.project_details,
+                'status': job.status,
+                'proposals_count': job.proposals_count,
+                'created_at': job.created_at.isoformat(),
+                'client': {
+                    'id': job.client.id,
+                    'name': f"{job.client.user.first_name} {job.client.user.last_name}".strip(),
+                    'username': job.client.user.username,
+                    'company_name': job.client.company_name or f"{job.client.user.first_name} {job.client.user.last_name}".strip(),
+                    'email': job.client.user.email,
+                    'created_at': job.client.user.date_joined.isoformat(),
+                }
+            }
+            
+            return self.success_response(
+                data=job_data,
+                message="Job details retrieved successfully"
+            )
+            
+        except Job.DoesNotExist:
+            return self.error_response(
+                message="Job not found or no longer available",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving job details: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

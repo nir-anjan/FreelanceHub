@@ -8,47 +8,54 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { MapPin, DollarSign, Clock, Briefcase, Send } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MapPin, DollarSign, Clock, Briefcase, Send, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import publicListingsService, { JobDetail as JobDetailType } from "@/services/publicListingsService";
 
 const JobDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [proposal, setProposal] = useState("");
   const [bidAmount, setBidAmount] = useState("");
+  const [job, setJob] = useState<JobDetailType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock job data (in real app, fetch based on id)
-  const job = {
-    id: 1,
-    title: "Full Stack Web Developer",
-    description: "Looking for an experienced full-stack developer to build a modern web application with React and Node.js. The project involves creating a responsive web platform with user authentication, real-time features, and integration with third-party APIs.",
-    budget: "$5,000 - $10,000",
-    duration: "2-3 months",
-    location: "Remote",
-    category: "Web Development",
-    skills: ["React", "Node.js", "MongoDB", "TypeScript", "REST APIs", "Socket.io"],
-    postedAt: "2 days ago",
-    proposals: 15,
-    clientName: "Tech Startup Inc.",
-    clientRating: 4.8,
-    requirements: [
-      "5+ years of experience in full-stack development",
-      "Strong portfolio demonstrating React and Node.js expertise",
-      "Experience with real-time applications",
-      "Good communication skills",
-      "Available for regular video calls",
-    ],
-    projectDetails: `We are building a collaborative workspace platform that will allow teams to work together in real-time. The platform needs to support multiple users, have a clean and intuitive UI, and provide seamless real-time updates.
-    
-    Key features include:
-    - User authentication and authorization
-    - Real-time collaboration features
-    - File sharing and management
-    - Activity tracking and notifications
-    - Integration with popular tools like Slack and Google Drive
-    
-    The ideal candidate will have experience building similar platforms and can work independently while maintaining regular communication with our team.`,
-  };
+  // Fetch job details
+  useEffect(() => {
+    const fetchJobDetails = async () => {
+      if (!id) {
+        setError("Job ID not provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await publicListingsService.getJobById(parseInt(id));
+        
+        if (response.success) {
+          setJob(response.data);
+        } else {
+          setError(response.message || "Failed to fetch job details");
+        }
+      } catch (err: any) {
+        console.error("Error fetching job details:", err);
+        if (err.response?.status === 404) {
+          setError("Job not found or no longer available");
+        } else {
+          setError("Error loading job details. Please try again.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobDetails();
+  }, [id]);
 
   const handleSubmitProposal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +66,62 @@ const JobDetail = () => {
     setProposal("");
     setBidAmount("");
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/30">
+          <div className="container mx-auto px-4 py-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading job details...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/30">
+          <div className="container mx-auto px-4 py-8">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // No job found
+  if (!job) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/30">
+          <div className="container mx-auto px-4 py-8">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>Job not found.</AlertDescription>
+            </Alert>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -73,7 +136,9 @@ const JobDetail = () => {
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <Badge variant="secondary">{job.category}</Badge>
-                    <span className="text-sm text-muted-foreground">{job.postedAt}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {publicListingsService.getRelativeTime(job.created_at)}
+                    </span>
                   </div>
                   <CardTitle className="text-3xl mb-2">{job.title}</CardTitle>
                   <CardDescription className="text-base">{job.description}</CardDescription>
@@ -84,7 +149,9 @@ const JobDetail = () => {
                       <DollarSign className="h-5 w-5 text-success" />
                       <div>
                         <p className="text-xs text-muted-foreground">Budget</p>
-                        <p className="font-semibold">{job.budget}</p>
+                        <p className="font-semibold">
+                          {publicListingsService.formatBudget(job.budget_min, job.budget_max)}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -98,14 +165,14 @@ const JobDetail = () => {
                       <MapPin className="h-5 w-5 text-primary" />
                       <div>
                         <p className="text-xs text-muted-foreground">Location</p>
-                        <p className="font-semibold">{job.location}</p>
+                        <p className="font-semibold">Remote</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Briefcase className="h-5 w-5 text-primary" />
                       <div>
                         <p className="text-xs text-muted-foreground">Proposals</p>
-                        <p className="font-semibold">{job.proposals}</p>
+                        <p className="font-semibold">{job.proposals_count}</p>
                       </div>
                     </div>
                   </div>
@@ -114,30 +181,29 @@ const JobDetail = () => {
 
                   <div>
                     <h3 className="font-semibold text-lg mb-3">Project Details</h3>
-                    <p className="text-muted-foreground whitespace-pre-line">{job.projectDetails}</p>
+                    <p className="text-muted-foreground whitespace-pre-line">
+                      {job.project_details || job.description}
+                    </p>
                   </div>
 
                   <Separator />
 
-                  <div>
-                    <h3 className="font-semibold text-lg mb-3">Requirements</h3>
-                    <ul className="space-y-2">
-                      {job.requirements.map((req, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="text-success mt-1">•</span>
-                          <span className="text-muted-foreground">{req}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  {job.requirements && (
+                    <div>
+                      <h3 className="font-semibold text-lg mb-3">Requirements</h3>
+                      <div className="text-muted-foreground whitespace-pre-line">
+                        {job.requirements}
+                      </div>
+                    </div>
+                  )}
 
                   <Separator />
 
                   <div>
                     <h3 className="font-semibold text-lg mb-3">Skills Required</h3>
                     <div className="flex flex-wrap gap-2">
-                      {job.skills.map((skill) => (
-                        <Badge key={skill} variant="outline">
+                      {job.skills_list.map((skill, index) => (
+                        <Badge key={index} variant="outline">
                           {skill}
                         </Badge>
                       ))}
@@ -195,26 +261,23 @@ const JobDetail = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="font-semibold">{job.clientName}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-yellow-500">★</span>
-                      <span className="font-medium">{job.clientRating}</span>
-                      <span className="text-sm text-muted-foreground">(42 reviews)</span>
-                    </div>
+                    <p className="font-semibold">{job.client.name}</p>
+                    <p className="text-sm text-muted-foreground">@{job.client.username}</p>
+                    {job.client.company_name && job.client.company_name !== job.client.name && (
+                      <p className="text-sm text-muted-foreground">{job.client.company_name}</p>
+                    )}
                   </div>
                   <Separator />
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Jobs Posted</span>
-                      <span className="font-medium">28</span>
+                      <span className="text-muted-foreground">Member Since</span>
+                      <span className="font-medium">
+                        {new Date(job.client.created_at).toLocaleDateString()}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Hire Rate</span>
-                      <span className="font-medium">85%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Spent</span>
-                      <span className="font-medium">$125,000+</span>
+                      <span className="text-muted-foreground">Contact</span>
+                      <span className="font-medium">{job.client.email}</span>
                     </div>
                   </div>
                 </CardContent>

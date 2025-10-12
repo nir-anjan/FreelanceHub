@@ -18,6 +18,26 @@ export interface Job {
   client_username: string;
 }
 
+export interface JobDetail extends Job {
+  skills: string;
+  requirements: string | null;
+  project_details: string | null;
+  client: {
+    id: number;
+    name: string;
+    username: string;
+    company_name: string;
+    email: string;
+    created_at: string;
+  };
+}
+
+export interface JobDetailResponse {
+  success: boolean;
+  message: string;
+  data: JobDetail;
+}
+
 export interface Freelancer {
   id: number;
   name: string;
@@ -128,7 +148,7 @@ export const publicListingsService = {
         ...new Set(
           response.data.jobs
             .map((job) => job.category)
-            .filter((category) => category && category.trim() !== "")
+            .filter((category): category is string => Boolean(category && category.trim() !== ""))
         ),
       ];
       return categories.sort();
@@ -146,7 +166,7 @@ export const publicListingsService = {
         ...new Set(
           response.data.freelancers
             .map((freelancer) => freelancer.category)
-            .filter((category) => category && category.trim() !== "")
+            .filter((category): category is string => Boolean(category && category.trim() !== ""))
         ),
       ];
       return categories.sort();
@@ -194,6 +214,12 @@ export const publicListingsService = {
     } else {
       return "Just now";
     }
+  },
+
+  // Get job details by ID
+  async getJobById(jobId: number): Promise<JobDetailResponse> {
+    const response = await httpClient.get(`/auth/jobs/${jobId}/`);
+    return response.data;
   },
 };
 
