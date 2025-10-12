@@ -1262,3 +1262,544 @@ class AllFreelancersAPIView(APIView, StandardResponseMixin):
                 message=f"Error retrieving freelancers: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# ========================== ADMIN VIEWS ==========================
+
+class AdminOverviewAPIView(APIView, StandardResponseMixin):
+    """
+    Admin overview dashboard with platform statistics
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get platform overview statistics for admin dashboard
+        """
+        try:
+            from django.db.models import Count, Q
+            from .models import Dispute
+            
+            # Get counts for different models
+            total_users = User.objects.count()
+            total_clients = Client.objects.count()
+            total_freelancers = Freelancer.objects.count()
+            total_jobs = Job.objects.count()
+            pending_jobs = Job.objects.filter(status='pending').count()
+            open_jobs = Job.objects.filter(status='open').count()
+            total_payments = Payment.objects.count()
+            open_disputes = Dispute.objects.filter(status='open').count()
+            
+            # Calculate monthly revenue (current month)
+            from django.utils import timezone
+            import datetime
+            current_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            monthly_revenue = Payment.objects.filter(
+                status='completed',
+                paid_at__gte=current_month
+            ).aggregate(total=models.Sum('amount'))['total'] or 0
+            
+            # Recent activity data
+            recent_jobs = Job.objects.select_related('client__user').order_by('-created_at')[:5]
+            recent_payments = Payment.objects.select_related('client__user', 'freelancer__user').order_by('-created_at')[:5]
+            
+            return self.success_response(
+                message="Admin overview retrieved successfully",
+                data={
+                    'stats': {
+                        'total_users': total_users,
+                        'total_clients': total_clients,
+                        'total_freelancers': total_freelancers,
+                        'total_jobs': total_jobs,
+                        'pending_jobs': pending_jobs,
+                        'open_jobs': open_jobs,
+                        'total_payments': total_payments,
+                        'open_disputes': open_disputes,
+                        'monthly_revenue': float(monthly_revenue)
+                    },
+                    'recent_activity': {
+                        'recent_jobs': [
+                            {
+                                'id': job.id,
+                                'title': job.title,
+                                'client': job.client.user.get_full_name() or job.client.user.username,
+                                'status': job.status,
+                                'created_at': job.created_at.isoformat()
+                            } for job in recent_jobs
+                        ],
+                        'recent_payments': [
+                            {
+                                'id': payment.id,
+                                'amount': float(payment.amount),
+                                'client': payment.client.user.get_full_name() or payment.client.user.username,
+                                'freelancer': payment.freelancer.user.get_full_name() or payment.freelancer.user.username,
+                                'status': payment.status,
+                                'created_at': payment.created_at.isoformat()
+                            } for payment in recent_payments
+                        ]
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving admin overview: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminJobModerationAPIView(APIView, StandardResponseMixin):
+    """
+    Admin job moderation - list pending jobs
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get all pending jobs for moderation
+        """
+        try:
+            jobs = Job.objects.filter(status='pending').select_related('client__user').order_by('-created_at')
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = jobs.count()
+            jobs_page = jobs[start:end]
+            
+            jobs_data = []
+            for job in jobs_page:
+                jobs_data.append({
+                    'id': job.id,
+                    'title': job.title,
+                    'description': job.description,
+                    'category': job.category,
+                    'budget_min': float(job.budget_min) if job.budget_min else None,
+                    'budget_max': float(job.budget_max) if job.budget_max else None,
+                    'duration': job.duration,
+                    'status': job.status,
+                    'client': {
+                        'id': job.client.id,
+                        'name': job.client.user.get_full_name() or job.client.user.username,
+                        'username': job.client.user.username,
+                        'email': job.client.user.email
+                    },
+                    'created_at': job.created_at.isoformat()
+                })
+            
+            return self.success_response(
+                message="Pending jobs retrieved successfully",
+                data={
+                    'jobs': jobs_data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving pending jobs: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminJobApproveAPIView(APIView, StandardResponseMixin):
+    """
+    Admin job approval endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request, job_id):
+        """
+        Approve a pending job
+        """
+        try:
+            job = Job.objects.get(id=job_id, status='pending')
+            job.status = 'open'
+            job.save()
+            
+            return self.success_response(
+                message=f"Job '{job.title}' approved successfully",
+                data={'job_id': job.id, 'status': job.status}
+            )
+            
+        except Job.DoesNotExist:
+            return self.error_response(
+                message="Job not found or not pending approval",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return self.error_response(
+                message=f"Error approving job: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminJobRejectAPIView(APIView, StandardResponseMixin):
+    """
+    Admin job rejection endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request, job_id):
+        """
+        Reject a pending job
+        """
+        try:
+            job = Job.objects.get(id=job_id, status='pending')
+            job.status = 'cancelled'
+            job.save()
+            
+            return self.success_response(
+                message=f"Job '{job.title}' rejected successfully",
+                data={'job_id': job.id, 'status': job.status}
+            )
+            
+        except Job.DoesNotExist:
+            return self.error_response(
+                message="Job not found or not pending approval",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return self.error_response(
+                message=f"Error rejecting job: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminUsersAPIView(APIView, StandardResponseMixin):
+    """
+    Admin user management endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get all users with role filtering
+        """
+        try:
+            users = User.objects.all().order_by('-created_at')
+            
+            # Filter by role if specified
+            role_filter = request.GET.get('role')
+            if role_filter and role_filter in ['freelancer', 'client', 'admin']:
+                users = users.filter(role=role_filter)
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = users.count()
+            users_page = users[start:end]
+            
+            users_data = []
+            for user in users_page:
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'role': user.role,
+                    'is_active': user.is_active,
+                    'created_at': user.created_at.isoformat(),
+                    'last_login': user.last_login.isoformat() if user.last_login else None
+                }
+                
+                # Add role-specific data
+                if user.role == 'freelancer' and hasattr(user, 'freelancer_profile'):
+                    freelancer = user.freelancer_profile
+                    user_data['freelancer_data'] = {
+                        'title': freelancer.title,
+                        'category': freelancer.category,
+                        'rate': float(freelancer.rate) if freelancer.rate else None,
+                        'location': freelancer.location
+                    }
+                elif user.role == 'client' and hasattr(user, 'client_profile'):
+                    client = user.client_profile
+                    user_data['client_data'] = {
+                        'company_name': client.company_name
+                    }
+                
+                users_data.append(user_data)
+            
+            return self.success_response(
+                message="Users retrieved successfully",
+                data={
+                    'users': users_data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving users: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminDisputesAPIView(APIView, StandardResponseMixin):
+    """
+    Admin dispute management endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get all disputes
+        """
+        try:
+            from .models import Dispute
+            
+            disputes = Dispute.objects.select_related(
+                'job', 'client__user', 'freelancer__user', 'resolved_by'
+            ).order_by('-created_at')
+            
+            # Filter by status if specified
+            status_filter = request.GET.get('status')
+            if status_filter and status_filter in ['open', 'resolved', 'dismissed']:
+                disputes = disputes.filter(status=status_filter)
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = disputes.count()
+            disputes_page = disputes[start:end]
+            
+            disputes_data = []
+            for dispute in disputes_page:
+                disputes_data.append({
+                    'id': dispute.id,
+                    'job': {
+                        'id': dispute.job.id,
+                        'title': dispute.job.title
+                    },
+                    'client': {
+                        'id': dispute.client.id,
+                        'name': dispute.client.user.get_full_name() or dispute.client.user.username,
+                        'username': dispute.client.user.username
+                    },
+                    'freelancer': {
+                        'id': dispute.freelancer.id,
+                        'name': dispute.freelancer.user.get_full_name() or dispute.freelancer.user.username,
+                        'username': dispute.freelancer.user.username
+                    },
+                    'description': dispute.description,
+                    'status': dispute.status,
+                    'resolution': dispute.resolution,
+                    'created_at': dispute.created_at.isoformat(),
+                    'resolved_at': dispute.resolved_at.isoformat() if dispute.resolved_at else None,
+                    'resolved_by': dispute.resolved_by.username if dispute.resolved_by else None
+                })
+            
+            return self.success_response(
+                message="Disputes retrieved successfully",
+                data={
+                    'disputes': disputes_data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving disputes: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminDisputeResolveAPIView(APIView, StandardResponseMixin):
+    """
+    Admin dispute resolution endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request, dispute_id):
+        """
+        Resolve a dispute
+        """
+        try:
+            from .models import Dispute
+            from django.utils import timezone
+            
+            dispute = Dispute.objects.get(id=dispute_id, status='open')
+            resolution = request.data.get('resolution', '')
+            
+            if not resolution:
+                return self.error_response(
+                    message="Resolution text is required",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            
+            dispute.status = 'resolved'
+            dispute.resolution = resolution
+            dispute.resolved_at = timezone.now()
+            dispute.resolved_by = request.user
+            dispute.save()
+            
+            return self.success_response(
+                message=f"Dispute #{dispute.id} resolved successfully"
+            )
+            
+        except Dispute.DoesNotExist:
+            return self.error_response(
+                message="Dispute not found or already resolved",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return self.error_response(
+                message=f"Error resolving dispute: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminDisputeDismissAPIView(APIView, StandardResponseMixin):
+    """
+    Admin dispute dismissal endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request, dispute_id):
+        """
+        Dismiss a dispute
+        """
+        try:
+            from .models import Dispute
+            from django.utils import timezone
+            
+            dispute = Dispute.objects.get(id=dispute_id, status='open')
+            resolution = request.data.get('resolution', 'Dispute dismissed by admin')
+            
+            dispute.status = 'dismissed'
+            dispute.resolution = resolution
+            dispute.resolved_at = timezone.now()
+            dispute.resolved_by = request.user
+            dispute.save()
+            
+            return self.success_response(
+                message=f"Dispute #{dispute.id} dismissed successfully"
+            )
+            
+        except Dispute.DoesNotExist:
+            return self.error_response(
+                message="Dispute not found or already resolved",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return self.error_response(
+                message=f"Error dismissing dispute: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminPaymentsAPIView(APIView, StandardResponseMixin):
+    """
+    Admin payment monitoring endpoint
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get all payments with filtering
+        """
+        try:
+            payments = Payment.objects.select_related(
+                'job', 'client__user', 'freelancer__user'
+            ).order_by('-created_at')
+            
+            # Filter by status if specified
+            status_filter = request.GET.get('status')
+            if status_filter and status_filter in ['pending', 'completed', 'failed', 'refunded']:
+                payments = payments.filter(status=status_filter)
+            
+            # Date range filter
+            date_from = request.GET.get('date_from')
+            date_to = request.GET.get('date_to')
+            if date_from:
+                payments = payments.filter(created_at__gte=date_from)
+            if date_to:
+                payments = payments.filter(created_at__lte=date_to)
+            
+            # Pagination
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            total_count = payments.count()
+            payments_page = payments[start:end]
+            
+            payments_data = []
+            for payment in payments_page:
+                payments_data.append({
+                    'id': payment.id,
+                    'job': {
+                        'id': payment.job.id,
+                        'title': payment.job.title
+                    },
+                    'client': {
+                        'id': payment.client.id,
+                        'name': payment.client.user.get_full_name() or payment.client.user.username,
+                        'username': payment.client.user.username
+                    },
+                    'freelancer': {
+                        'id': payment.freelancer.id,
+                        'name': payment.freelancer.user.get_full_name() or payment.freelancer.user.username,
+                        'username': payment.freelancer.user.username
+                    },
+                    'amount': float(payment.amount),
+                    'currency': payment.currency,
+                    'payment_method': payment.payment_method,
+                    'status': payment.status,
+                    'transaction_id': payment.transaction_id,
+                    'created_at': payment.created_at.isoformat(),
+                    'paid_at': payment.paid_at.isoformat() if payment.paid_at else None
+                })
+            
+            return self.success_response(
+                message="Payments retrieved successfully",
+                data={
+                    'payments': payments_data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    }
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving payments: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

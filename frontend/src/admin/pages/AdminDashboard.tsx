@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { AdminLayout } from "../components/layout/AdminLayout";
 import { StatsCard } from "../components/shared/StatsCard";
 import {
@@ -29,65 +30,144 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
-
-// Mock data for charts
-const revenueData = [
-  { month: "Jan", revenue: 12000 },
-  { month: "Feb", revenue: 15000 },
-  { month: "Mar", revenue: 18000 },
-  { month: "Apr", revenue: 22000 },
-  { month: "May", revenue: 25000 },
-  { month: "Jun", revenue: 28000 },
-];
-
-const userGrowthData = [
-  { month: "Jan", users: 120 },
-  { month: "Feb", users: 180 },
-  { month: "Mar", users: 250 },
-  { month: "Apr", users: 320 },
-  { month: "May", users: 410 },
-  { month: "Jun", users: 520 },
-];
-
-const jobCompletionData = [
-  { status: "Completed", count: 156, fill: "#22c55e" },
-  { status: "In Progress", count: 89, fill: "#f59e0b" },
-  { status: "Pending", count: 45, fill: "#ef4444" },
-];
-
-const recentActivities = [
-  {
-    id: 1,
-    type: "job_approved",
-    message: "Job 'Website Development' approved",
-    time: "2 minutes ago",
-    user: "John Smith",
-  },
-  {
-    id: 2,
-    type: "dispute_resolved",
-    message: "Dispute #1234 resolved in favor of freelancer",
-    time: "15 minutes ago",
-    user: "Sarah Johnson",
-  },
-  {
-    id: 3,
-    type: "user_registered",
-    message: "New freelancer registered",
-    time: "1 hour ago",
-    user: "Mike Wilson",
-  },
-  {
-    id: 4,
-    type: "transaction_completed",
-    message: "Payment of $500 processed",
-    time: "2 hours ago",
-    user: "Emma Davis",
-  },
-];
+import adminService, {
+  AdminStats,
+  RecentJob,
+  RecentPayment,
+} from "@/services/adminService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const AdminDashboard = () => {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Mock data for charts (keeping for now until we have more historical data)
+  const revenueData = [
+    { month: "Jan", revenue: 12000 },
+    { month: "Feb", revenue: 15000 },
+    { month: "Mar", revenue: 18000 },
+    { month: "Apr", revenue: 22000 },
+    { month: "May", revenue: 25000 },
+    { month: "Jun", revenue: 28000 },
+  ];
+
+  const userGrowthData = [
+    { month: "Jan", users: 120 },
+    { month: "Feb", users: 180 },
+    { month: "Mar", users: 250 },
+    { month: "Apr", users: 320 },
+    { month: "May", users: 410 },
+    { month: "Jun", users: 520 },
+  ];
+
+  // Load admin overview data
+  useEffect(() => {
+    const loadOverviewData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await adminService.getOverview();
+
+        if (response.success) {
+          setStats(response.data.stats);
+          setRecentJobs(response.data.recent_activity.recent_jobs);
+          setRecentPayments(response.data.recent_activity.recent_payments);
+        } else {
+          setError("Failed to load dashboard data");
+        }
+      } catch (err: any) {
+        console.error("Error loading admin overview:", err);
+        if (err.response?.status === 403) {
+          setError("Access denied. Admin privileges required.");
+        } else if (err.response?.status === 401) {
+          setError("Authentication required. Please log in again.");
+        } else {
+          setError("Failed to load dashboard data. Please try again.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOverviewData();
+  }, []);
+
+  // Generate job completion data from stats
+  const jobCompletionData = stats
+    ? [
+        { status: "Open", count: stats.open_jobs, fill: "#3b82f6" },
+        { status: "Pending", count: stats.pending_jobs, fill: "#f59e0b" },
+        {
+          status: "Total",
+          count: stats.total_jobs - stats.open_jobs - stats.pending_jobs,
+          fill: "#22c55e",
+        },
+      ]
+    : [];
+
+  // Combine recent activities
+  const recentActivities = [
+    ...recentJobs.map((job) => ({
+      id: `job-${job.id}`,
+      type: "job_created",
+      message: `New job '${job.title}' created`,
+      time: adminService.getRelativeTime(job.created_at),
+      user: job.client,
+    })),
+    ...recentPayments.map((payment) => ({
+      id: `payment-${payment.id}`,
+      type: "payment_processed",
+      message: `Payment of ${adminService.formatCurrency(
+        payment.amount
+      )} processed`,
+      time: adminService.getRelativeTime(payment.created_at),
+      user: payment.client,
+    })),
+  ]
+    .sort((a, b) => {
+      // Sort by most recent first (approximate, since we're using relative time)
+      return a.time.localeCompare(b.time);
+    })
+    .slice(0, 4);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </AdminLayout>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <AdminLayout>
+        <Alert>
+          <AlertDescription>No dashboard data available.</AlertDescription>
+        </Alert>
+      </AdminLayout>
+    );
+  }
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -104,28 +184,34 @@ export const AdminDashboard = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Total Users"
-            value="2,847"
+            value={stats.total_users.toLocaleString()}
             icon={Users}
             change={{ value: 12.5, type: "increase" }}
             color="blue"
           />
           <StatsCard
             title="Jobs Pending"
-            value="12"
+            value={stats.pending_jobs.toString()}
             icon={FileText}
-            change={{ value: -8.3, type: "decrease" }}
+            change={{
+              value: stats.pending_jobs > 5 ? 10 : -5,
+              type: stats.pending_jobs > 5 ? "increase" : "decrease",
+            }}
             color="yellow"
           />
           <StatsCard
             title="Active Disputes"
-            value="3"
+            value={stats.open_disputes.toString()}
             icon={Scale}
-            change={{ value: -25.0, type: "decrease" }}
+            change={{
+              value: stats.open_disputes > 3 ? 5 : -10,
+              type: stats.open_disputes > 3 ? "increase" : "decrease",
+            }}
             color="red"
           />
           <StatsCard
             title="Monthly Revenue"
-            value="$28,450"
+            value={adminService.formatCurrency(stats.monthly_revenue)}
             icon={DollarSign}
             change={{ value: 15.2, type: "increase" }}
             color="green"

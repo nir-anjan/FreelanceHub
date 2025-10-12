@@ -22,6 +22,16 @@ from .views import (
     # Public listing views
     AllJobsAPIView,
     AllFreelancersAPIView,
+    # Admin views
+    AdminOverviewAPIView,
+    AdminJobModerationAPIView,
+    AdminJobApproveAPIView,
+    AdminJobRejectAPIView,
+    AdminUsersAPIView,
+    AdminDisputesAPIView,
+    AdminDisputeResolveAPIView,
+    AdminDisputeDismissAPIView,
+    AdminPaymentsAPIView,
 )
 
 app_name = 'auth'
@@ -66,4 +76,15 @@ urlpatterns = [
     # Public listing endpoints
     path('jobs/', AllJobsAPIView.as_view(), name='all_jobs'),
     path('freelancers/', AllFreelancersAPIView.as_view(), name='all_freelancers'),
+    
+    # Admin endpoints
+    path('admin/overview/', AdminOverviewAPIView.as_view(), name='admin_overview'),
+    path('admin/jobs/pending/', AdminJobModerationAPIView.as_view(), name='admin_jobs_pending'),
+    path('admin/jobs/<int:job_id>/approve/', AdminJobApproveAPIView.as_view(), name='admin_job_approve'),
+    path('admin/jobs/<int:job_id>/reject/', AdminJobRejectAPIView.as_view(), name='admin_job_reject'),
+    path('admin/users/', AdminUsersAPIView.as_view(), name='admin_users'),
+    path('admin/disputes/', AdminDisputesAPIView.as_view(), name='admin_disputes'),
+    path('admin/disputes/<int:dispute_id>/resolve/', AdminDisputeResolveAPIView.as_view(), name='admin_dispute_resolve'),
+    path('admin/disputes/<int:dispute_id>/dismiss/', AdminDisputeDismissAPIView.as_view(), name='admin_dispute_dismiss'),
+    path('admin/payments/', AdminPaymentsAPIView.as_view(), name='admin_payments'),
 ]

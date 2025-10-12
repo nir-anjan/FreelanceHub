@@ -154,7 +154,7 @@ class Job(models.Model):
     skills = models.TextField(blank=True, null=True, help_text='Comma-separated or JSON array')
     requirements = models.TextField(blank=True, null=True)
     project_details = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=50, default='open', help_text='open | in_progress | completed | cancelled')
+    status = models.CharField(max_length=50, default='pending', help_text='pending | open | in_progress | completed | cancelled')
     proposals_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -213,3 +213,30 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"Message {self.id} by {self.sender.username}"
+
+
+# ---------------------- DISPUTES -----------------------
+class Dispute(models.Model):
+    """Disputes between clients and freelancers that need admin resolution"""
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('resolved', 'Resolved'),
+        ('dismissed', 'Dismissed'),
+    ]
+    
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='disputes')
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='disputes')
+    freelancer = models.ForeignKey(Freelancer, on_delete=models.CASCADE, related_name='disputes')
+    description = models.TextField(help_text='Description of the dispute')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    resolution = models.TextField(blank=True, null=True, help_text='Admin resolution notes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(blank=True, null=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name='resolved_disputes')
+
+    class Meta:
+        db_table = 'disputes'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Dispute #{self.id}: {self.job.title} ({self.status})"

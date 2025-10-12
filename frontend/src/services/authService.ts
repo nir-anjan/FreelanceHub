@@ -17,6 +17,7 @@ import {
 class AuthService {
   private readonly ENDPOINTS = {
     LOGIN: "/auth/login/",
+    ADMIN_LOGIN: "/auth/admin/login/",
     REGISTER: "/auth/register/",
     LOGOUT: "/auth/logout/",
     PROFILE: "/auth/profile/",
@@ -32,6 +33,32 @@ class AuthService {
     try {
       const response = await httpClient.post<AuthResponse>(
         this.ENDPOINTS.LOGIN,
+        credentials
+      );
+
+      if (response.data.success) {
+        // Store tokens and user data
+        httpClient.setTokens({
+          access: response.data.data.access,
+          refresh: response.data.data.refresh,
+        });
+
+        this.storeUserData(response.data.data.user);
+      }
+
+      return response.data;
+    } catch (error: any) {
+      throw this.handleAuthError(error);
+    }
+  }
+
+  /**
+   * Authenticate admin user with email and password
+   */
+  async adminLogin(credentials: LoginRequest): Promise<AuthResponse> {
+    try {
+      const response = await httpClient.post<AuthResponse>(
+        this.ENDPOINTS.ADMIN_LOGIN,
         credentials
       );
 

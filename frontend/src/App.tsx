@@ -21,6 +21,7 @@ import FreelancerProfile from "./pages/FreelancerProfile";
 import NotFound from "./pages/NotFound";
 import { AdminDashboard } from "./admin/pages/AdminDashboard";
 import { AdminJobs } from "./admin/pages/AdminJobs";
+import AdminLogin from "./admin/pages/AdminLogin";
 // Dashboard Components
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
@@ -61,6 +62,14 @@ const App = () => (
                 </GuestRoute>
               }
             />
+            <Route
+              path="/admin/login"
+              element={
+                <GuestRoute>
+                  <AdminLogin />
+                </GuestRoute>
+              }
+            />
 
             {/* Public job and freelancer listings */}
             <Route path="/jobs" element={<Jobs />} />
@@ -69,8 +78,22 @@ const App = () => (
             <Route path="/freelancers/:id" element={<FreelancerProfile />} />
 
             {/* Admin Only Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/jobs" element={<AdminJobs />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/jobs"
+              element={
+                <AdminRoute>
+                  <AdminJobs />
+                </AdminRoute>
+              }
+            />
 
             {/* Protected Routes (require authentication but any role) */}
             <Route

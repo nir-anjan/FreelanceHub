@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Menu, Bell, User, Settings, LogOut, Shield } from "lucide-react";
+import { useAuth } from "@/contexts";
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
@@ -22,6 +23,7 @@ export const AdminHeader = ({
   isMobileMenuOpen,
 }: AdminHeaderProps) => {
   const [notifications] = useState(3); // Mock notification count
+  const { logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -83,16 +85,12 @@ export const AdminHeader = ({
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem
+                className="text-red-600 cursor-pointer"
+                onClick={logout}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
