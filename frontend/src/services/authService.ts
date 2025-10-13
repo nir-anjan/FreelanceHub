@@ -1,4 +1,4 @@
-import httpClient from "./httpClient";
+import api, { tokenManager } from "./api";
 import {
   User,
   LoginRequest,
@@ -31,14 +31,14 @@ class AuthService {
    */
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      const response = await httpClient.post<AuthResponse>(
+      const response = await api.post<AuthResponse>(
         this.ENDPOINTS.LOGIN,
         credentials
       );
 
       if (response.data.success) {
         // Store tokens and user data
-        httpClient.setTokens({
+        tokenManager.storeTokens({
           access: response.data.data.access,
           refresh: response.data.data.refresh,
         });
@@ -57,14 +57,14 @@ class AuthService {
    */
   async adminLogin(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      const response = await httpClient.post<AuthResponse>(
+      const response = await api.post<AuthResponse>(
         this.ENDPOINTS.ADMIN_LOGIN,
         credentials
       );
 
       if (response.data.success) {
         // Store tokens and user data
-        httpClient.setTokens({
+        tokenManager.storeTokens({
           access: response.data.data.access,
           refresh: response.data.data.refresh,
         });
@@ -83,7 +83,7 @@ class AuthService {
    */
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
     try {
-      const response = await httpClient.post<RegisterResponse>(
+      const response = await api.post<RegisterResponse>(
         this.ENDPOINTS.REGISTER,
         userData
       );
@@ -102,7 +102,7 @@ class AuthService {
       const refreshToken = this.getStoredRefreshToken();
 
       if (refreshToken) {
-        await httpClient.post<LogoutResponse>(this.ENDPOINTS.LOGOUT, {
+        await api.post<LogoutResponse>(this.ENDPOINTS.LOGOUT, {
           refresh: refreshToken,
         });
       }
@@ -120,7 +120,7 @@ class AuthService {
    */
   async getProfile(): Promise<any> {
     try {
-      const response = await httpClient.get(this.ENDPOINTS.PROFILE);
+      const response = await api.get(this.ENDPOINTS.PROFILE);
 
       if (response.data.success) {
         // Store the user data from the combined response
@@ -139,7 +139,7 @@ class AuthService {
    */
   async updateProfile(data: any): Promise<any> {
     try {
-      const response = await httpClient.put(this.ENDPOINTS.PROFILE, data);
+      const response = await api.put(this.ENDPOINTS.PROFILE, data);
 
       if (response.data.success) {
         // Store the user data from the combined response
@@ -158,7 +158,7 @@ class AuthService {
    */
   async createRoleProfile(data: any): Promise<any> {
     try {
-      const response = await httpClient.post(this.ENDPOINTS.PROFILE, data);
+      const response = await api.post(this.ENDPOINTS.PROFILE, data);
 
       if (response.data.success) {
         return response.data.data;
@@ -199,10 +199,7 @@ class AuthService {
    */
   async changePassword(data: PasswordChangeRequest): Promise<void> {
     try {
-      const response = await httpClient.post(
-        this.ENDPOINTS.CHANGE_PASSWORD,
-        data
-      );
+      const response = await api.post(this.ENDPOINTS.CHANGE_PASSWORD, data);
 
       if (!response.data.success) {
         throw new Error(response.data.message);
@@ -223,7 +220,7 @@ class AuthService {
         throw new Error("No refresh token available");
       }
 
-      const response = await httpClient.post<TokenRefreshResponse>(
+      const response = await api.post<TokenRefreshResponse>(
         this.ENDPOINTS.REFRESH_TOKEN,
         { refresh: refreshToken }
       );
@@ -243,7 +240,7 @@ class AuthService {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return httpClient.isAuthenticated();
+    return tokenManager.isAuthenticated();
   }
 
   /**
@@ -338,7 +335,7 @@ class AuthService {
   }
 
   private clearAuthData(): void {
-    httpClient.clearAllTokens();
+    tokenManager.clearTokens();
 
     // Dispatch logout event for auth context
     window.dispatchEvent(new CustomEvent("auth:logout"));

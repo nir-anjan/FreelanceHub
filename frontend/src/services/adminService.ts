@@ -1,4 +1,4 @@
-import httpClient from "./httpClient";
+import api from "./api";
 
 // ======================== TYPES ========================
 
@@ -227,7 +227,7 @@ export interface AdminJobFilters {
 export const adminService = {
   // Admin overview
   async getOverview(): Promise<AdminOverviewResponse> {
-    const response = await httpClient.get("/auth/admin/overview/");
+    const response = await api.get("/auth/admin/overview/");
     return response.data;
   },
 
@@ -248,19 +248,17 @@ export const adminService = {
       queryString ? `?${queryString}` : ""
     }`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 
   async approveJob(jobId: number): Promise<JobActionResponse> {
-    const response = await httpClient.post(
-      `/auth/admin/jobs/${jobId}/approve/`
-    );
+    const response = await api.post(`/auth/admin/jobs/${jobId}/approve/`);
     return response.data;
   },
 
   async rejectJob(jobId: number): Promise<JobActionResponse> {
-    const response = await httpClient.post(`/auth/admin/jobs/${jobId}/reject/`);
+    const response = await api.post(`/auth/admin/jobs/${jobId}/reject/`);
     return response.data;
   },
 
@@ -277,7 +275,7 @@ export const adminService = {
     const queryString = params.toString();
     const url = `/auth/admin/users/${queryString ? `?${queryString}` : ""}`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -296,7 +294,7 @@ export const adminService = {
     const queryString = params.toString();
     const url = `/auth/admin/disputes/${queryString ? `?${queryString}` : ""}`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -304,7 +302,7 @@ export const adminService = {
     disputeId: number,
     resolution: string
   ): Promise<DisputeActionResponse> {
-    const response = await httpClient.post(
+    const response = await api.post(
       `/auth/admin/disputes/${disputeId}/resolve/`,
       {
         resolution,
@@ -317,7 +315,7 @@ export const adminService = {
     disputeId: number,
     resolution?: string
   ): Promise<DisputeActionResponse> {
-    const response = await httpClient.post(
+    const response = await api.post(
       `/auth/admin/disputes/${disputeId}/dismiss/`,
       {
         resolution: resolution || "Dispute dismissed by admin",
@@ -341,7 +339,7 @@ export const adminService = {
     const queryString = params.toString();
     const url = `/auth/admin/payments/${queryString ? `?${queryString}` : ""}`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 

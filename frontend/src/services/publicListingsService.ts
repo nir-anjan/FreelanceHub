@@ -1,4 +1,4 @@
-import httpClient from "./httpClient";
+import api from "./api";
 
 // ======================== TYPES ========================
 
@@ -132,7 +132,7 @@ export const publicListingsService = {
     const queryString = params.toString();
     const url = `/auth/jobs/${queryString ? `?${queryString}` : ""}`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -151,7 +151,7 @@ export const publicListingsService = {
     const queryString = params.toString();
     const url = `/auth/freelancers/${queryString ? `?${queryString}` : ""}`;
 
-    const response = await httpClient.get(url);
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -237,7 +237,7 @@ export const publicListingsService = {
 
   // Get job details by ID
   async getJobById(jobId: number): Promise<JobDetailResponse> {
-    const response = await httpClient.get(`/auth/jobs/${jobId}/`);
+    const response = await api.get(`/auth/jobs/${jobId}/`);
     return response.data;
   },
 
@@ -245,7 +245,7 @@ export const publicListingsService = {
   async getFreelancerById(
     freelancerId: number
   ): Promise<FreelancerDetailResponse> {
-    const response = await httpClient.get(`/auth/freelancers/${freelancerId}/`);
+    const response = await api.get(`/auth/freelancers/${freelancerId}/`);
     return response.data;
   },
 };

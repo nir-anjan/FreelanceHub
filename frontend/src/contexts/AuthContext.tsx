@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/services";
-import httpClient from "@/services/httpClient";
+import { tokenManager } from "@/services/api";
 import {
   User,
   AuthContextType,
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (authService.isAuthenticated()) {
         // Get current token
-        const currentToken = httpClient.getAccessToken();
+        const currentToken = tokenManager.getStoredToken();
         setToken(currentToken);
 
         // Try to get user profile to verify token validity
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.success) {
         setUser(response.data.user);
-        setToken(httpClient.getAccessToken());
+        setToken(tokenManager.getStoredToken());
         setIsAuthenticated(true);
 
         toast({

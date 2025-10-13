@@ -1,4 +1,4 @@
-import httpClient from "./httpClient";
+import api from "./api";
 
 // Enhanced types for the new chat system
 export interface ChatThreadEnhanced {
@@ -135,21 +135,21 @@ class ChatService {
 
   // Thread management
   async getThreads(page = 1): Promise<ThreadListResponse> {
-    const response = await httpClient.get<ThreadListResponse>(
+    const response = await api.get<ThreadListResponse>(
       `${this.baseUrl}/threads/?page=${page}`
     );
     return response.data;
   }
 
   async getThread(threadId: number): Promise<ChatThreadEnhanced> {
-    const response = await httpClient.get<ChatThreadEnhanced>(
+    const response = await api.get<ChatThreadEnhanced>(
       `${this.baseUrl}/threads/${threadId}/`
     );
     return response.data;
   }
 
   async createThread(data: CreateThreadRequest): Promise<ChatThreadEnhanced> {
-    const response = await httpClient.post<ChatThreadEnhanced>(
+    const response = await api.post<ChatThreadEnhanced>(
       `${this.baseUrl}/threads/`,
       data
     );
@@ -168,7 +168,7 @@ class ChatService {
     if (jobId) {
       params.append("job_id", jobId.toString());
     }
-    const response = await httpClient.get<ChatThreadEnhanced>(
+    const response = await api.get<ChatThreadEnhanced>(
       `${this.baseUrl}/threads/by-participants/?${params}`
     );
     return response.data;
@@ -176,7 +176,7 @@ class ChatService {
 
   // Message management
   async getMessages(threadId: number, page = 1): Promise<MessageListResponse> {
-    const response = await httpClient.get<MessageListResponse>(
+    const response = await api.get<MessageListResponse>(
       `${this.baseUrl}/threads/${threadId}/messages/?page=${page}`
     );
     return response.data;
@@ -186,7 +186,7 @@ class ChatService {
     threadId: number,
     data: SendMessageRequest
   ): Promise<ChatMessageEnhanced> {
-    const response = await httpClient.post<ChatMessageEnhanced>(
+    const response = await api.post<ChatMessageEnhanced>(
       `${this.baseUrl}/threads/${threadId}/messages/`,
       data
     );
@@ -194,7 +194,7 @@ class ChatService {
   }
 
   async getMessage(messageId: number): Promise<ChatMessageEnhanced> {
-    const response = await httpClient.get<ChatMessageEnhanced>(
+    const response = await api.get<ChatMessageEnhanced>(
       `${this.baseUrl}/messages/${messageId}/`
     );
     return response.data;
@@ -204,7 +204,7 @@ class ChatService {
     messageId: number,
     message: string
   ): Promise<ChatMessageEnhanced> {
-    const response = await httpClient.put<ChatMessageEnhanced>(
+    const response = await api.put<ChatMessageEnhanced>(
       `${this.baseUrl}/messages/${messageId}/`,
       { message }
     );
@@ -212,14 +212,14 @@ class ChatService {
   }
 
   async deleteMessage(messageId: number): Promise<void> {
-    await httpClient.delete(`${this.baseUrl}/messages/${messageId}/`);
+    await api.delete(`${this.baseUrl}/messages/${messageId}/`);
   }
 
   async markMessagesRead(
     threadId: number,
     messageIds: number[]
   ): Promise<void> {
-    await httpClient.post(`${this.baseUrl}/threads/${threadId}/mark-read/`, {
+    await api.post(`${this.baseUrl}/threads/${threadId}/mark-read/`, {
       message_ids: messageIds,
     });
   }
@@ -229,7 +229,7 @@ class ChatService {
     threadId: number,
     data: CreateDisputeRequest
   ): Promise<any> {
-    const response = await httpClient.post(
+    const response = await api.post(
       `${this.baseUrl}/threads/${threadId}/create-dispute/`,
       data
     );
@@ -240,7 +240,7 @@ class ChatService {
     threadId: number,
     data: InitiatePaymentRequest
   ): Promise<any> {
-    const response = await httpClient.post(
+    const response = await api.post(
       `${this.baseUrl}/threads/${threadId}/initiate-payment/`,
       data
     );
@@ -248,7 +248,7 @@ class ChatService {
   }
 
   async sendJobUpdate(threadId: number, data: JobUpdateRequest): Promise<any> {
-    const response = await httpClient.post(
+    const response = await api.post(
       `${this.baseUrl}/threads/${threadId}/job-update/`,
       data
     );
@@ -257,7 +257,7 @@ class ChatService {
 
   // Utility
   async getUnreadCount(): Promise<UnreadCountResponse> {
-    const response = await httpClient.get<UnreadCountResponse>(
+    const response = await api.get<UnreadCountResponse>(
       `${this.baseUrl}/unread-count/`
     );
     return response.data;
@@ -269,7 +269,7 @@ class ChatService {
     created: boolean;
     redirect_url: string;
   }> {
-    const response = await httpClient.post(`${this.baseUrl}/hire-freelancer/`, {
+    const response = await api.post(`${this.baseUrl}/hire-freelancer/`, {
       freelancer_id: freelancerId,
     });
     return response.data;
@@ -280,7 +280,7 @@ class ChatService {
     created: boolean;
     redirect_url: string;
   }> {
-    const response = await httpClient.post(`${this.baseUrl}/proposal-chat/`, {
+    const response = await api.post(`${this.baseUrl}/proposal-chat/`, {
       job_id: jobId,
     });
     return response.data;
