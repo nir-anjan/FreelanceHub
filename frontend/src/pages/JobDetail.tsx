@@ -26,17 +26,21 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import publicListingsService, {
   JobDetail as JobDetailType,
 } from "@/services/publicListingsService";
+import chatService from "@/services/chatService";
 
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [proposal, setProposal] = useState("");
   const [bidAmount, setBidAmount] = useState("");
   const [job, setJob] = useState<JobDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submittingProposal, setSubmittingProposal] = useState(false);
 
   // Fetch job details
   useEffect(() => {
@@ -73,15 +77,58 @@ const JobDetail = () => {
     fetchJobDetails();
   }, [id]);
 
-  const handleSubmitProposal = (e: React.FormEvent) => {
+  const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Proposal submitted!",
-      description:
-        "The client will review your proposal and get back to you soon.",
-    });
-    setProposal("");
-    setBidAmount("");
+
+    if (!job || !proposal.trim() || !bidAmount) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSubmittingProposal(true);
+
+      // Create proposal chat thread
+      const chatResponse = await chatService.createProposalChat(job.id);
+
+      // Here you would also submit the actual proposal to your proposals API
+      // For now, we'll just show success and redirect to chat
+
+      toast({
+        title: "Proposal submitted!",
+        description: chatResponse.created
+          ? "Your proposal has been submitted and a chat has been started with the client."
+          : "Your proposal has been submitted. Continue the conversation in chat.",
+      });
+
+      // Clear form
+      setProposal("");
+      setBidAmount("");
+
+      // Redirect to chat after a short delay
+      setTimeout(() => {
+        navigate(chatResponse.redirect_url);
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error submitting proposal:", error);
+
+      let errorMessage = "Failed to submit proposal. Please try again.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingProposal(false);
+    }
   };
 
   // Loading state
@@ -299,9 +346,23 @@ const JobDetail = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" size="lg">
-                      <Send className="h-4 w-4 mr-2" />
-                      Submit Proposal
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      size="lg"
+                      disabled={submittingProposal}
+                    >
+                      {submittingProposal ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Submit Proposal
+                        </>
+                      )}
                     </Button>
                   </form>
                 </CardContent>

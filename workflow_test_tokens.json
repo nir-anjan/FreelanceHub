@@ -1,0 +1,17 @@
+{
+  "client": {
+    "user_id": 17,
+    "username": "testclient",
+    "profile_id": 4,
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzE4MDc2LCJpYXQiOjE3NjAzMTQ0NzYsImp0aSI6ImU1MmQ1OGY0ZmFiMTRmNDg5MmI4ZGE2MzUyNTliZDMwIiwidXNlcl9pZCI6IjE3In0.OsVTraVXugnEE_P1L_UUDtynLQwcvDbPwJlDEBrujZk",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2MjkwNjQ3NiwiaWF0IjoxNzYwMzE0NDc2LCJqdGkiOiJhNGI4ZTYyNjkzOGM0NzExODYyZTUzNzhiM2M4NDE0MiIsInVzZXJfaWQiOiIxNyJ9.h9TSDf9hjNcnW_VljFEMZJoSdMOVt9gM-D5hoDGHCJc"
+  },
+  "freelancer": {
+    "user_id": 18,
+    "username": "testfreelancer",
+    "profile_id": 5,
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzE4MDc2LCJpYXQiOjE3NjAzMTQ0NzYsImp0aSI6ImVjN2EzZWI2ZGI3YzRkODViM2VkZDIwODIwNTkyMThiIiwidXNlcl9pZCI6IjE4In0.dLow_lPei8oufg7xPBJEP8kIDpRclnnEdSdNS-s5bmo",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2MjkwNjQ3NiwiaWF0IjoxNzYwMzE0NDc2LCJqdGkiOiJlZWRjMGY2ODNlNzA0N2U5YjY2Y2QxY2U0Mjk3MTM1NyIsInVzZXJfaWQiOiIxOCJ9.zunLLetmN1nZO7T9iWA6EA-omcaKfo6jcX8U5VER3Kg"
+  },
+  "test_job_id": 10
+}

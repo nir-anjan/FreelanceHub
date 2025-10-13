@@ -21,4 +21,8 @@ urlpatterns = [
     path('threads/<int:thread_id>/create-dispute/', views.create_dispute_from_chat, name='create-dispute'),
     path('threads/<int:thread_id>/initiate-payment/', views.initiate_payment_from_chat, name='initiate-payment'),
     path('threads/<int:thread_id>/job-update/', views.send_job_update_to_chat, name='job-update'),
+    
+    # Workflow endpoints
+    path('hire-freelancer/', views.hire_freelancer, name='hire-freelancer'),
+    path('proposal-chat/', views.proposal_chat, name='proposal-chat'),
 ]

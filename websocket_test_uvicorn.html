@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test - Port 8001</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .error { background-color: #fff3cd; color: #856404; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin: 10px 0; }
+        input, button { margin: 5px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test - Uvicorn ASGI (Port 8001)</h1>
+    
+    <div id="status" class="status disconnected">Disconnected</div>
+    
+    <div>
+        <input type="text" id="threadId" placeholder="Thread ID (e.g., 1)" value="1">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+    
+    <div>
+        <input type="text" id="messageInput" placeholder="Enter message" style="width: 300px;">
+        <button onclick="sendMessage()">Send Message</button>
+    </div>
+    
+    <div id="messages"></div>
+
+    <script>
+        let socket = null;
+        const JWT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzUwNjgzLCJpYXQiOjE3NjAzNDcwODMsImp0aSI6ImQ1ZmViMzRlYzk2ZTRhN2JhMzcwODUxOGE2M2MzZTNhIiwidXNlcl9pZCI6IjE3In0.ugUJMLRFUuoi16rHBpFmZQxxBCdgqDYrBe2nUPjQ3iA';
+        
+        function updateStatus(message, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + className;
+        }
+        
+        function addMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function connect() {
+            const threadId = document.getElementById('threadId').value;
+            if (!threadId) {
+                alert('Please enter a thread ID');
+                return;
+            }
+            
+            if (socket) {
+                socket.close();
+            }
+            
+            // Use port 8001 for uvicorn
+            const wsUrl = `ws://127.0.0.1:8001/ws/chat/${threadId}/?token=${JWT_TOKEN}`;
+            addMessage(`Connecting to: ${wsUrl}`);
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function(event) {
+                updateStatus('Connected', 'connected');
+                addMessage('WebSocket connection established');
+            };
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                addMessage('Received: ' + JSON.stringify(data, null, 2));
+            };
+            
+            socket.onclose = function(event) {
+                updateStatus(`Disconnected (Code: ${event.code})`, 'disconnected');
+                addMessage(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
+            };
+            
+            socket.onerror = function(event) {
+                updateStatus('Error', 'error');
+                addMessage('WebSocket error occurred');
+                console.error('WebSocket error:', event);
+            };
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        }
+        
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || !socket || socket.readyState !== WebSocket.OPEN) {
+                alert('No message or WebSocket not connected');
+                return;
+            }
+            
+            const messageData = {
+                type: 'chat_message',
+                message: message
+            };
+            
+            socket.send(JSON.stringify(messageData));
+            addMessage('Sent: ' + message);
+            messageInput.value = '';
+        }
+        
+        // Allow Enter key to send message
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

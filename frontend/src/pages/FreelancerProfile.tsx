@@ -17,9 +17,11 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import publicListingsService, {
   FreelancerDetail,
 } from "@/services/publicListingsService";
+import chatService from "@/services/chatService";
 
 // Mock data for freelancer profiles
 const mockFreelancers: Record<string, any> = {
@@ -169,6 +171,7 @@ const FreelancerProfile = () => {
   const [freelancer, setFreelancer] = useState<FreelancerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hiringLoading, setHiringLoading] = useState(false);
 
   // Fetch freelancer details
   useEffect(() => {
@@ -218,6 +221,41 @@ const FreelancerProfile = () => {
         }`}
       />
     ));
+  };
+
+  const handleHireFreelancer = async () => {
+    if (!freelancer) return;
+
+    try {
+      setHiringLoading(true);
+
+      const response = await chatService.hireFreelancer(freelancer.id);
+
+      toast({
+        title: "Chat Started!",
+        description: response.created
+          ? `Started a new conversation with ${freelancer.name}`
+          : `Continuing conversation with ${freelancer.name}`,
+      });
+
+      // Redirect to chat
+      navigate(response.redirect_url);
+    } catch (error: any) {
+      console.error("Error starting chat:", error);
+
+      let errorMessage = "Failed to start conversation. Please try again.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setHiringLoading(false);
+    }
   };
 
   // Loading state
@@ -355,10 +393,20 @@ const FreelancerProfile = () => {
                   <Button
                     size="lg"
                     className="w-full md:w-auto"
-                    onClick={() => setIsChatOpen(true)}
+                    onClick={handleHireFreelancer}
+                    disabled={hiringLoading}
                   >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Hire Me
+                    {hiringLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Starting Chat...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Hire Me
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>

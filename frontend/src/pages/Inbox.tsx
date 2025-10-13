@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts";
-import { dashboardService } from "@/services";
-import { ChatThread } from "@/types/dashboard";
+import { chatService } from "@/services";
+import { ChatThreadEnhanced } from "@/services/chatService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   MessageSquare,
   Clock,
@@ -16,27 +17,28 @@ import {
   Briefcase,
   Search,
   Plus,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Inbox: React.FC = () => {
   const { user } = useAuth();
-  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [threads, setThreads] = useState<ChatThreadEnhanced[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchInbox();
+    fetchUnreadCount();
   }, []);
 
   const fetchInbox = async () => {
     try {
       setIsLoading(true);
-      const response = await dashboardService.getInbox();
-      if (response.success) {
-        setThreads(response.data.threads);
-      } else {
-        throw new Error(response.message);
-      }
+      const response = await chatService.getThreads();
+      setThreads(response.results);
     } catch (error) {
       console.error("Error fetching inbox:", error);
       toast({
@@ -46,6 +48,15 @@ const Inbox: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await chatService.getUnreadCount();
+      setUnreadCount(response.unread_count);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
     }
   };
 
@@ -82,6 +93,40 @@ const Inbox: React.FC = () => {
     return message.substring(0, maxLength) + "...";
   };
 
+  const getParticipantInfo = (thread: ChatThreadEnhanced) => {
+    const isUserClient = user?.role === "client";
+    const participant = isUserClient ? thread.freelancer : thread.client;
+    const participantUser = participant.user;
+
+    return {
+      name:
+        `${participantUser.first_name} ${participantUser.last_name}`.trim() ||
+        participantUser.username,
+      role: isUserClient ? "freelancer" : "client",
+      details: isUserClient
+        ? thread.freelancer.title
+        : thread.client.company_name,
+      profilePicture: undefined, // Add this when profile pictures are implemented
+    };
+  };
+
+  // Filter threads based on search term
+  const filteredThreads = threads.filter((thread) => {
+    if (!searchTerm) return true;
+    const participantInfo = getParticipantInfo(thread);
+    const searchLower = searchTerm.toLowerCase();
+
+    return (
+      participantInfo.name.toLowerCase().includes(searchLower) ||
+      (participantInfo.details &&
+        participantInfo.details.toLowerCase().includes(searchLower)) ||
+      (thread.job?.title &&
+        thread.job.title.toLowerCase().includes(searchLower)) ||
+      (thread.last_message?.message &&
+        thread.last_message.message.toLowerCase().includes(searchLower))
+    );
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -106,6 +151,11 @@ const Inbox: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <MessageSquare className="h-8 w-8 mr-3" />
             Inbox
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {unreadCount}
+              </Badge>
+            )}
           </h1>
           <p className="text-muted-foreground mt-2">
             Your conversations with{" "}
@@ -113,10 +163,24 @@ const Inbox: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
-            <Search className="h-4 w-4 mr-2" />
-            Search
+          <Button variant="outline" size="sm" onClick={fetchInbox}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
       </div>
 
@@ -144,12 +208,7 @@ const Inbox: React.FC = () => {
                 <p className="text-sm font-medium text-muted-foreground">
                   Unread Messages
                 </p>
-                <p className="text-2xl font-bold">
-                  {threads.reduce(
-                    (sum, thread) => sum + thread.unread_count,
-                    0
-                  )}
-                </p>
+                <p className="text-2xl font-bold">{unreadCount}</p>
               </div>
             </div>
           </CardContent>
@@ -164,7 +223,7 @@ const Inbox: React.FC = () => {
                   Active Chats
                 </p>
                 <p className="text-2xl font-bold">
-                  {threads.filter((thread) => thread.last_message).length}
+                  {threads.filter((thread) => thread.is_active).length}
                 </p>
               </div>
             </div>
@@ -178,111 +237,131 @@ const Inbox: React.FC = () => {
           <CardTitle>Conversations</CardTitle>
         </CardHeader>
         <CardContent>
-          {threads.length === 0 ? (
+          {filteredThreads.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                No conversations yet
+                {threads.length === 0
+                  ? "No conversations yet"
+                  : "No matching conversations"}
               </h3>
               <p className="text-muted-foreground mb-4">
-                Start a conversation with{" "}
-                {user?.role === "client"
-                  ? "freelancers by posting a job or browsing profiles"
-                  : "clients by applying to jobs"}
-                .
+                {threads.length === 0 ? (
+                  <>
+                    Start a conversation with{" "}
+                    {user?.role === "client"
+                      ? "freelancers by posting a job or browsing profiles"
+                      : "clients by applying to jobs"}
+                    .
+                  </>
+                ) : (
+                  "Try adjusting your search terms."
+                )}
               </p>
-              <Button asChild>
-                <Link
-                  to={
-                    user?.role === "client" ? "/dashboard/create-job" : "/jobs"
-                  }
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {user?.role === "client" ? "Post a Job" : "Browse Jobs"}
-                </Link>
-              </Button>
+              {threads.length === 0 && (
+                <Button asChild>
+                  <Link
+                    to={
+                      user?.role === "client"
+                        ? "/dashboard/create-job"
+                        : "/jobs"
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {user?.role === "client" ? "Post a Job" : "Browse Jobs"}
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-1">
-              {threads.map((thread) => (
-                <Card
-                  key={thread.id}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors border-l-4 border-l-transparent hover:border-l-primary"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-4">
-                      {/* Avatar */}
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage
-                          src={thread.other_user.profile_picture}
-                          alt={thread.other_user.name}
-                        />
-                        <AvatarFallback>
-                          {getUserInitials(thread.other_user.name)}
-                        </AvatarFallback>
-                      </Avatar>
+              {filteredThreads.map((thread) => {
+                const participantInfo = getParticipantInfo(thread);
 
-                      {/* Conversation Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-sm font-semibold truncate">
-                              {thread.other_user.name}
-                            </h3>
-                            <Badge variant="outline" className="text-xs">
-                              {thread.other_user.role}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {thread.unread_count > 0 && (
-                              <Badge variant="default" className="text-xs">
-                                {thread.unread_count} new
-                              </Badge>
-                            )}
-                            {thread.last_message && (
-                              <span className="text-xs text-muted-foreground">
-                                {formatTime(thread.last_message.sent_at)}
-                              </span>
+                return (
+                  <Link key={thread.id} to={`/dashboard/inbox/${thread.id}`}>
+                    <Card className="cursor-pointer hover:bg-gray-50 transition-colors border-l-4 border-l-transparent hover:border-l-primary">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-4">
+                          {/* Avatar */}
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage
+                              src={participantInfo.profilePicture}
+                              alt={participantInfo.name}
+                            />
+                            <AvatarFallback>
+                              {getUserInitials(participantInfo.name)}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          {/* Conversation Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-2">
+                                <h3 className="text-sm font-semibold truncate">
+                                  {participantInfo.name}
+                                </h3>
+                                <Badge variant="outline" className="text-xs">
+                                  {participantInfo.role}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {thread.unread_count > 0 && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="text-xs rounded-full px-2"
+                                  >
+                                    {thread.unread_count}
+                                  </Badge>
+                                )}
+                                {thread.last_message && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatTime(thread.last_message.sent_at)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Company/Job Info */}
+                            <div className="flex items-center space-x-4 text-xs text-muted-foreground mb-2">
+                              {participantInfo.details && (
+                                <div className="flex items-center space-x-1">
+                                  <Building className="h-3 w-3" />
+                                  <span className="truncate">
+                                    {participantInfo.details}
+                                  </span>
+                                </div>
+                              )}
+                              {thread.job && (
+                                <div className="flex items-center space-x-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  <span className="truncate max-w-40">
+                                    {thread.job.title}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Last Message */}
+                            {thread.last_message ? (
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-medium">
+                                  {thread.last_message.sender.username}:
+                                </span>{" "}
+                                {truncateMessage(thread.last_message.message)}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground italic">
+                                No messages yet
+                              </div>
                             )}
                           </div>
                         </div>
-
-                        {/* Company/Job Info */}
-                        <div className="flex items-center space-x-4 text-xs text-muted-foreground mb-2">
-                          {thread.other_user.company_name && (
-                            <div className="flex items-center space-x-1">
-                              <Building className="h-3 w-3" />
-                              <span>{thread.other_user.company_name}</span>
-                            </div>
-                          )}
-                          {thread.job && (
-                            <div className="flex items-center space-x-1">
-                              <Briefcase className="h-3 w-3" />
-                              <span className="truncate max-w-40">
-                                {thread.job.title}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Last Message */}
-                        {thread.last_message ? (
-                          <div className="text-sm text-muted-foreground">
-                            <span className="font-medium">
-                              {thread.last_message.sender}:
-                            </span>{" "}
-                            {truncateMessage(thread.last_message.message)}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-muted-foreground italic">
-                            No messages yet
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </CardContent>

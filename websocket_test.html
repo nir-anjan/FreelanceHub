@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Chat Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .connecting {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      #messages {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #fafafa;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 8px;
+        border-radius: 4px;
+        background-color: white;
+        border-left: 4px solid #007bff;
+      }
+      .system-message {
+        background-color: #e9ecef;
+        border-left-color: #6c757d;
+        font-style: italic;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+      }
+      .form-group {
+        margin: 10px 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      #tokenInput {
+        width: 100%;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      #messageInput {
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 Chat System WebSocket Test</h1>
+
+      <div class="form-group">
+        <label for="tokenInput"
+          >JWT Access Token (from frontend_test_tokens.json):</label
+        >
+        <input
+          type="text"
+          id="tokenInput"
+          placeholder="Paste your JWT token here..."
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="threadInput">Thread ID:</label>
+        <input type="number" id="threadInput" value="2" />
+      </div>
+
+      <div id="status" class="status disconnected">
+        Disconnected - Enter token and click Connect
+      </div>
+
+      <button id="connectBtn" onclick="connect()">Connect</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>
+        Disconnect
+      </button>
+
+      <div id="messages"></div>
+
+      <div class="form-group">
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="Type your message..."
+          disabled
+        />
+        <button id="sendBtn" onclick="sendMessage()" disabled>
+          Send Message
+        </button>
+      </div>
+
+      <div class="form-group">
+        <button onclick="sendTyping()" disabled id="typingBtn">
+          Send Typing Indicator
+        </button>
+        <button onclick="sendReadReceipt()" disabled id="readBtn">
+          Send Read Receipt
+        </button>
+      </div>
+
+      <h3>📝 Test Instructions:</h3>
+      <ol>
+        <li>
+          Copy the access token from <code>frontend_test_tokens.json</code>
+        </li>
+        <li>Paste it in the token field above</li>
+        <li>Make sure Thread ID is 2 (or adjust if different)</li>
+        <li>Click "Connect" to establish WebSocket connection</li>
+        <li>Send messages to test real-time communication</li>
+        <li>Open multiple tabs to simulate multiple users</li>
+      </ol>
+
+      <h3>🔧 Available Test Tokens:</h3>
+      <p><strong>Client:</strong> testclient / testpass123</p>
+      <p><strong>Freelancer:</strong> testfreelancer / testpass123</p>
+      <p>
+        <em
+          >Use tokens from the generated JSON file for WebSocket
+          authentication</em
+        >
+      </p>
+    </div>
+
+    <script>
+      let ws = null;
+      const statusDiv = document.getElementById("status");
+      const messagesDiv = document.getElementById("messages");
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const messageInput = document.getElementById("messageInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const typingBtn = document.getElementById("typingBtn");
+      const readBtn = document.getElementById("readBtn");
+
+      function updateStatus(message, className) {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${className}`;
+      }
+
+      function addMessage(content, isSystem = false) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = isSystem ? "message system-message" : "message";
+        messageDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${content}`;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function connect() {
+        const token = document.getElementById("tokenInput").value.trim();
+        const threadId = document.getElementById("threadInput").value;
+
+        if (!token) {
+          alert("Please enter a JWT token");
+          return;
+        }
+
+        updateStatus("Connecting...", "connecting");
+
+        const wsUrl = `ws://localhost:8000/ws/chat/${threadId}/?token=${token}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = function (event) {
+          updateStatus("Connected to WebSocket", "connected");
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          messageInput.disabled = false;
+          sendBtn.disabled = false;
+          typingBtn.disabled = false;
+          readBtn.disabled = false;
+          addMessage("WebSocket connection established", true);
+        };
+
+        ws.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          console.log("Received message:", data);
+
+          let content = "";
+          switch (data.type) {
+            case "chat_message":
+              content = `<strong>Message:</strong> ${data.message} <em>(from: ${data.sender_username})</em>`;
+              break;
+            case "typing_indicator":
+              content = `<strong>Typing:</strong> ${data.username} is ${
+                data.is_typing ? "typing" : "not typing"
+              }`;
+              break;
+            case "read_receipt":
+              content = `<strong>Read Receipt:</strong> Message ${data.message_id} read by ${data.username}`;
+              break;
+            case "thread_update":
+              content = `<strong>Thread Update:</strong> ${JSON.stringify(
+                data.thread_data
+              )}`;
+              break;
+            default:
+              content = `<strong>Unknown:</strong> ${JSON.stringify(data)}`;
+          }
+
+          addMessage(content);
+        };
+
+        ws.onclose = function (event) {
+          updateStatus("Disconnected from WebSocket", "disconnected");
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          messageInput.disabled = true;
+          sendBtn.disabled = true;
+          typingBtn.disabled = true;
+          readBtn.disabled = true;
+          addMessage(`WebSocket connection closed (Code: ${event.code})`, true);
+        };
+
+        ws.onerror = function (error) {
+          updateStatus("WebSocket error occurred", "disconnected");
+          addMessage(`WebSocket error: ${error}`, true);
+          console.error("WebSocket error:", error);
+        };
+      }
+
+      function disconnect() {
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+      }
+
+      function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        const data = {
+          type: "chat_message",
+          message: message,
+        };
+
+        ws.send(JSON.stringify(data));
+        messageInput.value = "";
+        addMessage(`<strong>Sent:</strong> ${message}`, true);
+      }
+
+      function sendTyping() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const data = {
+          type: "typing_indicator",
+          is_typing: true,
+        };
+
+        ws.send(JSON.stringify(data));
+        addMessage("Sent typing indicator", true);
+
+        // Auto stop typing after 3 seconds
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "typing_indicator",
+                is_typing: false,
+              })
+            );
+            addMessage("Stopped typing indicator", true);
+          }
+        }, 3000);
+      }
+
+      function sendReadReceipt() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const data = {
+          type: "read_receipt",
+          message_id: 1, // Test message ID
+        };
+
+        ws.send(JSON.stringify(data));
+        addMessage("Sent read receipt for message 1", true);
+      }
+
+      // Allow Enter key to send messages
+      messageInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+
+      // Auto-fill token if available (for demo purposes)
+      window.addEventListener("load", function () {
+        // You can manually paste a token here for testing
+        addMessage(
+          "WebSocket test page loaded. Enter your JWT token to connect.",
+          true
+        );
+      });
+    </script>
+  </body>
+</html>

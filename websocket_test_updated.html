@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Connection Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .connecting {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      #log {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f8f9fa;
+        font-size: 12px;
+        font-family: monospace;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+      }
+      input {
+        padding: 8px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 300px;
+      }
+      .token-input {
+        width: 100%;
+        font-family: monospace;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔌 WebSocket Connection Test</h1>
+
+      <div id="status" class="status disconnected">
+        Not Connected - Click Test Connection
+      </div>
+
+      <div>
+        <h3>📝 Test Parameters:</h3>
+        <label>JWT Token:</label><br />
+        <input
+          type="text"
+          id="tokenInput"
+          class="token-input"
+          value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzUwNjgzLCJpYXQiOjE3NjAzNDcwODMsImp0aSI6ImQ1ZmViMzRlYzk2ZTRhN2JhMzcwODUxOGE2M2MzZTNhIiwidXNlcl9pZCI6IjE3In0.ugUJMLRFUuoi16rHBpFmZQxxBCdgqDYrBe2nUPjQ3iA"
+        /><br />
+
+        <label>Thread ID:</label>
+        <input type="number" id="threadInput" value="1" />
+
+        <label>WebSocket URL:</label>
+        <input
+          type="text"
+          id="urlInput"
+          readonly
+          value="ws://localhost:8000/ws/chat/1/?token=..."
+        />
+      </div>
+
+      <div>
+        <button onclick="testConnection()">🔌 Test Connection</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled>
+          ❌ Disconnect
+        </button>
+        <button onclick="sendTestMessage()" id="sendBtn" disabled>
+          📤 Send Test Message
+        </button>
+        <button onclick="clearLog()">🗑️ Clear Log</button>
+      </div>
+
+      <div>
+        <h3>📊 Connection Log:</h3>
+        <div id="log"></div>
+      </div>
+
+      <div>
+        <h3>🚀 Instructions:</h3>
+        <ol>
+          <li>Make sure Django server is running on port 8000</li>
+          <li>The JWT token above should be valid for ~1 hour</li>
+          <li>Click "Test Connection" to connect to WebSocket</li>
+          <li>Watch the log for connection status and any errors</li>
+          <li>If successful, try sending a test message</li>
+        </ol>
+
+        <h3>🔧 Troubleshooting:</h3>
+        <ul>
+          <li>
+            <strong>Connection refused:</strong> Django server not running
+          </li>
+          <li>
+            <strong>401 Unauthorized:</strong> JWT token expired or invalid
+          </li>
+          <li>
+            <strong>404 Not Found:</strong> WebSocket routing not properly
+            configured
+          </li>
+          <li>
+            <strong>500 Internal Error:</strong> Server-side error in chat
+            consumer
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      const statusDiv = document.getElementById("status");
+      const logDiv = document.getElementById("log");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const sendBtn = document.getElementById("sendBtn");
+
+      function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const color =
+          type === "error"
+            ? "#dc3545"
+            : type === "success"
+            ? "#28a745"
+            : "#6c757d";
+        logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function updateStatus(message, className) {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${className}`;
+      }
+
+      function updateUrl() {
+        const token = document.getElementById("tokenInput").value;
+        const threadId = document.getElementById("threadInput").value;
+        const url = `ws://localhost:8000/ws/chat/${threadId}/?token=${token}`;
+        document.getElementById("urlInput").value = url;
+        return url;
+      }
+
+      function testConnection() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          log("Already connected!", "info");
+          return;
+        }
+
+        const wsUrl = updateUrl();
+        log(`🔌 Attempting connection to: ${wsUrl}`, "info");
+        updateStatus("Connecting...", "connecting");
+
+        try {
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = function (event) {
+            log("✅ WebSocket connected successfully!", "success");
+            updateStatus("Connected", "connected");
+            disconnectBtn.disabled = false;
+            sendBtn.disabled = false;
+          };
+
+          ws.onmessage = function (event) {
+            log(`📨 Message received: ${event.data}`, "success");
+            try {
+              const data = JSON.parse(event.data);
+              log(`📋 Parsed data: ${JSON.stringify(data, null, 2)}`, "info");
+            } catch (e) {
+              log(`⚠️  Could not parse message as JSON`, "error");
+            }
+          };
+
+          ws.onclose = function (event) {
+            log(
+              `🔌 Connection closed: Code ${event.code}, Reason: ${
+                event.reason || "No reason"
+              }`,
+              "error"
+            );
+            updateStatus("Disconnected", "disconnected");
+            disconnectBtn.disabled = true;
+            sendBtn.disabled = true;
+
+            // Common close codes:
+            if (event.code === 1006) {
+              log(
+                "❌ Connection closed abnormally - check if Django server is running",
+                "error"
+              );
+            } else if (event.code === 1002) {
+              log(
+                "❌ Protocol error - check WebSocket consumer implementation",
+                "error"
+              );
+            } else if (event.code === 1003) {
+              log("❌ Unsupported data - check message format", "error");
+            }
+          };
+
+          ws.onerror = function (error) {
+            log(`❌ WebSocket error occurred: ${error}`, "error");
+            updateStatus("Connection Error", "disconnected");
+            disconnectBtn.disabled = true;
+            sendBtn.disabled = true;
+          };
+        } catch (error) {
+          log(`❌ Failed to create WebSocket: ${error}`, "error");
+          updateStatus("Connection Failed", "disconnected");
+        }
+      }
+
+      function disconnect() {
+        if (ws) {
+          log("🔌 Disconnecting...", "info");
+          ws.close();
+          ws = null;
+        }
+      }
+
+      function sendTestMessage() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          log("❌ Not connected - cannot send message", "error");
+          return;
+        }
+
+        const testMessage = {
+          type: "chat_message",
+          message: "Hello from WebSocket test! 👋",
+        };
+
+        log(`📤 Sending test message: ${JSON.stringify(testMessage)}`, "info");
+        ws.send(JSON.stringify(testMessage));
+      }
+
+      function clearLog() {
+        logDiv.innerHTML = "";
+      }
+
+      // Auto-update URL when inputs change
+      document
+        .getElementById("tokenInput")
+        .addEventListener("input", updateUrl);
+      document
+        .getElementById("threadInput")
+        .addEventListener("input", updateUrl);
+
+      // Initialize
+      updateUrl();
+      log(
+        '🚀 WebSocket test page loaded. Click "Test Connection" to start.',
+        "info"
+      );
+    </script>
+  </body>
+</html>

@@ -4,6 +4,8 @@ from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Max, Count
 from django.contrib.auth import get_user_model
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from api.auth.models import Client, Freelancer, Job
 from .models import ChatThread, ChatMessage, MessageRead
 from .serializers import (
@@ -496,5 +498,216 @@ def send_job_update_to_chat(request, thread_id):
     except Exception as e:
         return Response(
             {'error': f'Failed to send job update: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def hire_freelancer(request):
+    """
+    Handle 'Hire Me' workflow - create/find chat thread between client and freelancer
+    """
+    try:
+        user = request.user
+        freelancer_id = request.data.get('freelancer_id')
+        
+        if not freelancer_id:
+            return Response(
+                {'error': 'freelancer_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Ensure user is a client
+        try:
+            client_profile = user.client_profile
+        except AttributeError:
+            return Response(
+                {'error': 'Only clients can hire freelancers'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get freelancer
+        try:
+            freelancer = Freelancer.objects.get(id=freelancer_id)
+        except Freelancer.DoesNotExist:
+            return Response(
+                {'error': 'Freelancer not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if thread already exists between client and freelancer
+        existing_thread = ChatThread.objects.filter(
+            client=client_profile,
+            freelancer=freelancer,
+            job__isnull=True  # General hire conversation, not job-specific
+        ).first()
+        
+        if existing_thread:
+            thread = existing_thread
+            created = False
+        else:
+            # Create new thread
+            thread = ChatThread.objects.create(
+                client=client_profile,
+                freelancer=freelancer,
+                is_active=True
+            )
+            created = True
+            
+            # Create system message
+            system_message = ChatMessage.objects.create(
+                thread=thread,
+                sender=user,
+                message=f"Client {user.get_full_name() or user.username} started a conversation with you.",
+                message_type='system',
+                metadata={
+                    'action': 'hire_conversation_started',
+                    'client_name': user.get_full_name() or user.username,
+                    'freelancer_name': freelancer.user.get_full_name() or freelancer.user.username
+                }
+            )
+            
+            # Broadcast system message to chat
+            channel_layer = get_channel_layer()
+            room_group_name = f'chat_{thread.id}'
+            
+            async_to_sync(channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'chat_message_broadcast',
+                    'message_data': {
+                        'id': system_message.id,
+                        'thread': thread.id,
+                        'sender': {
+                            'id': user.id,
+                            'username': user.username
+                        },
+                        'message': system_message.message,
+                        'message_type': 'system',
+                        'sent_at': system_message.sent_at.isoformat(),
+                        'metadata': system_message.metadata
+                    }
+                }
+            )
+        
+        # Return thread details
+        serializer = ChatThreadSerializer(thread, context={'request': request})
+        return Response({
+            'thread': serializer.data,
+            'created': created,
+            'redirect_url': f'/dashboard/inbox/{thread.id}'
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to create hire conversation: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def proposal_chat(request):
+    """
+    Handle proposal submission workflow - create/find chat thread for job proposal
+    """
+    try:
+        user = request.user
+        job_id = request.data.get('job_id')
+        
+        if not job_id:
+            return Response(
+                {'error': 'job_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Ensure user is a freelancer
+        try:
+            freelancer_profile = user.freelancer_profile
+        except AttributeError:
+            return Response(
+                {'error': 'Only freelancers can submit proposals'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get job
+        try:
+            job = Job.objects.get(id=job_id)
+        except Job.DoesNotExist:
+            return Response(
+                {'error': 'Job not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if thread already exists between freelancer and job client
+        existing_thread = ChatThread.objects.filter(
+            client=job.client,
+            freelancer=freelancer_profile,
+            job=job
+        ).first()
+        
+        if existing_thread:
+            thread = existing_thread
+            created = False
+        else:
+            # Create new thread with job context
+            thread = ChatThread.objects.create(
+                client=job.client,
+                freelancer=freelancer_profile,
+                job=job,
+                is_active=True
+            )
+            created = True
+            
+            # Create system message
+            system_message = ChatMessage.objects.create(
+                thread=thread,
+                sender=user,
+                message=f"Freelancer {user.get_full_name() or user.username} has submitted a proposal for job: {job.title}.",
+                message_type='system',
+                metadata={
+                    'action': 'proposal_submitted',
+                    'job_id': job.id,
+                    'job_title': job.title,
+                    'freelancer_name': user.get_full_name() or user.username,
+                    'client_name': job.client.user.get_full_name() or job.client.user.username
+                }
+            )
+            
+            # Broadcast system message to chat
+            channel_layer = get_channel_layer()
+            room_group_name = f'chat_{thread.id}'
+            
+            async_to_sync(channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'chat_message_broadcast',
+                    'message_data': {
+                        'id': system_message.id,
+                        'thread': thread.id,
+                        'sender': {
+                            'id': user.id,
+                            'username': user.username
+                        },
+                        'message': system_message.message,
+                        'message_type': 'system',
+                        'sent_at': system_message.sent_at.isoformat(),
+                        'metadata': system_message.metadata
+                    }
+                }
+            )
+        
+        # Return thread details
+        serializer = ChatThreadSerializer(thread, context={'request': request})
+        return Response({
+            'thread': serializer.data,
+            'created': created,
+            'redirect_url': f'/dashboard/inbox/{thread.id}'
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to create proposal conversation: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

@@ -1,0 +1,15 @@
+{
+  "client": {
+    "user_id": 17,
+    "username": "testclient",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzE1NTg5LCJpYXQiOjE3NjAzMTE5OTAsImp0aSI6IjFiMWYzM2NkNDRkNDQ5Mzg4Y2I4ZTg0Njk0NmE5YmY0IiwidXNlcl9pZCI6IjE3In0.XK-TEDozV5T3pww8U6k7HnoVwPkRV19zNeanVQcSevs",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2MjkwMzk4OSwiaWF0IjoxNzYwMzExOTg5LCJqdGkiOiI5NmIwMDlmYjZkYWQ0YTk2YmViOTM0MjMxZDVlNDQzZCIsInVzZXJfaWQiOiIxNyJ9.2qX_tkV95Ixk9GrMW35FYR7p6VtfjvbNLKku1UG-CUw"
+  },
+  "freelancer": {
+    "user_id": 18,
+    "username": "testfreelancer",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYwMzE1NTkwLCJpYXQiOjE3NjAzMTE5OTAsImp0aSI6ImU0NWE1MTNiOGNmYjQwZjBiMGZhYTQzZWIwMzRhMzI5IiwidXNlcl9pZCI6IjE4In0.zddsWt_6wM8kZYlZqeT-GdZBxrdEsDJtWjmwRaWmT3c",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2MjkwMzk5MCwiaWF0IjoxNzYwMzExOTkwLCJqdGkiOiIxOGMyMTg4NzYxZTI0NDRkYTRhZWFkYzY0MjVkNmQwNiIsInVzZXJfaWQiOiIxOCJ9.nrO9X50ZvUf6VCakgQtwtC5hFgKrZAlT89Se197A894"
+  },
+  "thread_id": 2
+}

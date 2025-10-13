@@ -28,7 +28,7 @@ class FreelancerSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Freelancer
-        fields = ['id', 'user', 'title', 'hourly_rate']
+        fields = ['id', 'user', 'title', 'rate']
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):

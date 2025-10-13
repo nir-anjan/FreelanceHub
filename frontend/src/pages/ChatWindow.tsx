@@ -1,14 +1,38 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts";
-import { dashboardService } from "@/services";
-import { ChatMessage, ChatMessagesResponse } from "@/types/dashboard";
+import { chatService, ChatWebSocketClient } from "@/services";
+import {
+  ChatMessageEnhanced,
+  ChatThreadEnhanced,
+} from "@/services/chatService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  AlertTriangle,
+  DollarSign,
+  FileText,
+  CheckCheck,
+  Check,
+  Users,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import {
   ArrowLeft,
   Send,
@@ -17,73 +41,227 @@ import {
   Building,
   Briefcase,
   Clock,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const ChatWindow: React.FC = () => {
   const { threadId } = useParams<{ threadId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [chatData, setChatData] = useState<ChatMessagesResponse | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { user, token } = useAuth();
+
+  // State management
+  const [thread, setThread] = useState<ChatThreadEnhanced | null>(null);
+  const [messages, setMessages] = useState<ChatMessageEnhanced[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // Dispute and payment dialogs
+  const [showDisputeDialog, setShowDisputeDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [disputeSubject, setDisputeSubject] = useState("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDescription, setPaymentDescription] = useState("");
+
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<ChatWebSocketClient | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (threadId) {
-      fetchMessages();
+  // Parse thread ID
+  const threadIdNum = threadId ? parseInt(threadId, 10) : null;
+
+  // WebSocket event handlers
+  const handleWebSocketConnect = useCallback(() => {
+    setIsConnected(true);
+    toast({
+      title: "Connected",
+      description: "Real-time chat connected",
+      duration: 2000,
+    });
+  }, []);
+
+  const handleWebSocketDisconnect = useCallback(() => {
+    setIsConnected(false);
+  }, []);
+
+  const handleWebSocketError = useCallback((error: string) => {
+    console.error("WebSocket error:", error);
+    toast({
+      title: "Connection Error",
+      description: error,
+      variant: "destructive",
+    });
+  }, []);
+
+  const handleIncomingMessage = useCallback((message: ChatMessageEnhanced) => {
+    setMessages((prev) => {
+      // Check if message already exists to prevent duplicates
+      if (prev.some((m) => m.id === message.id)) {
+        return prev;
+      }
+      return [...prev, message].sort(
+        (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
+      );
+    });
+
+    // Auto-scroll if user is near bottom
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
+      if (scrollHeight - scrollTop - clientHeight < 100) {
+        setTimeout(scrollToBottom, 100);
+      }
     }
-  }, [threadId]);
+  }, []);
 
+  const handleMessagesRead = useCallback(
+    (messageIds: number[], reader: string) => {
+      if (reader !== user?.username) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
+          )
+        );
+      }
+    },
+    [user?.username]
+  );
+
+  const handleTypingIndicator = useCallback(
+    (username: string, isTyping: boolean) => {
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        if (isTyping) {
+          newSet.add(username);
+        } else {
+          newSet.delete(username);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    if (!threadIdNum || !token || !user) return;
+
+    const wsClient = new ChatWebSocketClient(threadIdNum, token, {
+      onConnect: handleWebSocketConnect,
+      onDisconnect: handleWebSocketDisconnect,
+      onError: handleWebSocketError,
+      onMessage: handleIncomingMessage,
+      onMessagesRead: handleMessagesRead,
+      onTypingIndicator: handleTypingIndicator,
+    });
+
+    wsRef.current = wsClient;
+    wsClient.connect().catch((error) => {
+      console.error("Failed to connect WebSocket:", error);
+    });
+
+    return () => {
+      wsClient.disconnect();
+      wsRef.current = null;
+    };
+  }, [
+    threadIdNum,
+    token,
+    user,
+    handleWebSocketConnect,
+    handleWebSocketDisconnect,
+    handleWebSocketError,
+    handleIncomingMessage,
+    handleMessagesRead,
+    handleTypingIndicator,
+  ]);
+
+  // Load initial data
+  useEffect(() => {
+    if (threadIdNum) {
+      loadChatData();
+    }
+  }, [threadIdNum]);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle scroll to show/hide scroll button
+  const handleScroll = useCallback(() => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
+      setShowScrollButton(scrollHeight - scrollTop - clientHeight > 100);
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchMessages = async () => {
+  const loadChatData = async () => {
+    if (!threadIdNum) return;
+
     try {
       setIsLoading(true);
-      const response = await dashboardService.getChatMessages(Number(threadId));
-      if (response.success) {
-        setChatData(response.data);
-        setMessages(response.data.messages);
-      } else {
-        throw new Error(response.message);
+
+      // Load thread details and messages concurrently
+      const [threadData, messagesData] = await Promise.all([
+        chatService.getThread(threadIdNum),
+        chatService.getMessages(threadIdNum),
+      ]);
+
+      setThread(threadData);
+      setMessages(messagesData.results);
+
+      // Mark messages as read
+      const unreadMessages = messagesData.results
+        .filter((msg) => !msg.is_read && msg.sender.id !== user?.id)
+        .map((msg) => msg.id);
+
+      if (unreadMessages.length > 0) {
+        await chatService.markMessagesRead(threadIdNum, unreadMessages);
+        // Also send via WebSocket
+        wsRef.current?.markMessagesRead(unreadMessages);
       }
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("Error loading chat data:", error);
       toast({
         title: "Error",
-        description: "Failed to load messages",
+        description: "Failed to load chat data",
         variant: "destructive",
       });
-      navigate("/dashboard/inbox");
     } finally {
       setIsLoading(false);
     }
   };
-
+  // Message handlers
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newMessage.trim() || isSending || !threadIdNum) return;
 
-    if (!newMessage.trim() || isSending) return;
+    const messageToSend = newMessage.trim();
+    setNewMessage("");
+    setIsSending(true);
 
     try {
-      setIsSending(true);
-      const response = await dashboardService.sendMessage(Number(threadId), {
-        message: newMessage.trim(),
-      });
+      // Send via WebSocket for real-time delivery
+      const wsSuccess = wsRef.current?.sendMessage(messageToSend);
 
-      if (response.success) {
-        setMessages((prev) => [...prev, response.data]);
-        setNewMessage("");
-      } else {
-        throw new Error(response.message);
+      if (!wsSuccess) {
+        // Fallback to REST API if WebSocket is not connected
+        await chatService.sendMessage(threadIdNum, { message: messageToSend });
+        // Reload messages to ensure consistency
+        await loadChatData();
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -92,13 +270,92 @@ const ChatWindow: React.FC = () => {
         description: "Failed to send message",
         variant: "destructive",
       });
+      setNewMessage(messageToSend); // Restore message on error
     } finally {
       setIsSending(false);
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    } else {
+      // Send typing indicator
+      wsRef.current?.sendTypingStart();
+    }
+  };
+
+  // Dispute handling
+  const handleCreateDispute = async () => {
+    if (!threadIdNum || !disputeSubject.trim() || !disputeDescription.trim())
+      return;
+
+    try {
+      await chatService.createDispute(threadIdNum, {
+        subject: disputeSubject.trim(),
+        description: disputeDescription.trim(),
+      });
+
+      setShowDisputeDialog(false);
+      setDisputeSubject("");
+      setDisputeDescription("");
+
+      toast({
+        title: "Dispute Created",
+        description: "Your dispute has been submitted for review",
+      });
+    } catch (error) {
+      console.error("Error creating dispute:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create dispute",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Payment handling
+  const handleInitiatePayment = async () => {
+    if (!threadIdNum || !paymentAmount.trim()) return;
+
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid payment amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await chatService.initiatePayment(threadIdNum, {
+        amount,
+        description: paymentDescription.trim() || undefined,
+      });
+
+      setShowPaymentDialog(false);
+      setPaymentAmount("");
+      setPaymentDescription("");
+
+      toast({
+        title: "Payment Initiated",
+        description: `Payment of $${amount} has been initiated`,
+      });
+    } catch (error) {
+      console.error("Error initiating payment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate payment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Utility functions
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-IN", {
+    return new Date(dateString).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -115,7 +372,7 @@ const ChatWindow: React.FC = () => {
     } else if (date.toDateString() === yesterday.toDateString()) {
       return "Yesterday";
     } else {
-      return date.toLocaleDateString("en-IN", {
+      return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -131,8 +388,59 @@ const ChatWindow: React.FC = () => {
       .toUpperCase();
   };
 
-  const groupMessagesByDate = (messages: ChatMessage[]) => {
-    const groups: { [date: string]: ChatMessage[] } = {};
+  const getMessageTypeStyle = (messageType: string) => {
+    switch (messageType) {
+      case "system":
+        return "bg-yellow-100 border-yellow-200 text-yellow-800";
+      case "payment_completed":
+        return "bg-green-100 border-green-200 text-green-800";
+      case "dispute_created":
+        return "bg-red-100 border-red-200 text-red-800";
+      case "job_update":
+        return "bg-blue-100 border-blue-200 text-blue-800";
+      default:
+        return "";
+    }
+  };
+
+  const getMessageTypeIcon = (messageType: string) => {
+    switch (messageType) {
+      case "payment_completed":
+        return <DollarSign className="h-4 w-4" />;
+      case "dispute_created":
+        return <AlertTriangle className="h-4 w-4" />;
+      case "job_update":
+        return <FileText className="h-4 w-4" />;
+      case "system":
+        return <MessageSquare className="h-4 w-4" />;
+      default:
+        return null;
+    }
+  };
+
+  const isOwnMessage = (message: ChatMessageEnhanced) => {
+    return message.sender.id === user?.id;
+  };
+
+  const getParticipantInfo = () => {
+    if (!thread) return null;
+
+    const isUserClient = user?.role === "client";
+    const otherParticipant = isUserClient ? thread.freelancer : thread.client;
+
+    return {
+      name:
+        `${otherParticipant.user.first_name} ${otherParticipant.user.last_name}`.trim() ||
+        otherParticipant.user.username,
+      role: isUserClient ? "freelancer" : "client",
+      details: isUserClient
+        ? thread.freelancer.title
+        : thread.client.company_name,
+    };
+  };
+
+  const groupMessagesByDate = (messages: ChatMessageEnhanced[]) => {
+    const groups: { [date: string]: ChatMessageEnhanced[] } = {};
 
     messages.forEach((message) => {
       const date = formatDate(message.sent_at);
@@ -145,6 +453,7 @@ const ChatWindow: React.FC = () => {
     return Object.entries(groups);
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -156,83 +465,234 @@ const ChatWindow: React.FC = () => {
     );
   }
 
-  if (!chatData) {
+  if (!thread) {
     return (
-      <div className="text-center py-12">
-        <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Conversation not found</h3>
-        <Button onClick={() => navigate("/dashboard/inbox")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Inbox
-        </Button>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Chat thread not found</p>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/dashboard/inbox")}
+            className="mt-4"
+          >
+            Back to Inbox
+          </Button>
+        </div>
       </div>
     );
   }
 
-  const otherUser =
-    user?.role === "client"
-      ? chatData.thread.freelancer
-      : chatData.thread.client;
+  const participantInfo = getParticipantInfo();
   const messageGroups = groupMessagesByDate(messages);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/dashboard/inbox")}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Inbox
-        </Button>
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback>{getUserInitials(otherUser.name)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-xl font-semibold">{otherUser.name}</h1>
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <Badge variant="outline">
-                {user?.role === "client" ? "Freelancer" : "Client"}
-              </Badge>
-              {user?.role === "freelancer" && otherUser.company_name && (
-                <div className="flex items-center space-x-1">
-                  <Building className="h-3 w-3" />
-                  <span>{otherUser.company_name}</span>
-                </div>
-              )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/dashboard/inbox")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Inbox
+          </Button>
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback>
+                {participantInfo ? getUserInitials(participantInfo.name) : "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-xl font-semibold">
+                {participantInfo?.name || "Unknown User"}
+              </h1>
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <Badge variant="outline">
+                  {participantInfo?.role === "freelancer"
+                    ? "Freelancer"
+                    : "Client"}
+                </Badge>
+                {participantInfo?.details && (
+                  <div className="flex items-center space-x-1">
+                    <Building className="h-3 w-3" />
+                    <span>{participantInfo.details}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Connection Status */}
+        <div className="flex items-center space-x-2">
+          {isConnected ? (
+            <div className="flex items-center space-x-1 text-green-600">
+              <Wifi className="h-4 w-4" />
+              <span className="text-xs">Connected</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1 text-red-600">
+              <WifiOff className="h-4 w-4" />
+              <span className="text-xs">Disconnected</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Job Context */}
-      {chatData.thread.job && (
+      {thread?.job && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <div className="flex items-center space-x-2 text-sm">
               <Briefcase className="h-4 w-4 text-blue-600" />
               <span className="font-medium">Project:</span>
-              <span>{chatData.thread.job.title}</span>
+              <span>{thread.job.title}</span>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Chat Messages */}
-      <Card className="h-96 flex flex-col">
+      <Card className="h-[600px] flex flex-col">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center text-lg">
-            <MessageSquare className="h-5 w-5 mr-2" />
-            Conversation
+          <CardTitle className="flex items-center justify-between text-lg">
+            <div className="flex items-center">
+              <MessageSquare className="h-5 w-5 mr-2" />
+              Conversation
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-2">
+              <Dialog
+                open={showDisputeDialog}
+                onOpenChange={setShowDisputeDialog}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Dispute
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Dispute</DialogTitle>
+                    <DialogDescription>
+                      Create a dispute for this project. An admin will review
+                      your case.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="dispute-subject">Subject</Label>
+                      <Input
+                        id="dispute-subject"
+                        value={disputeSubject}
+                        onChange={(e) => setDisputeSubject(e.target.value)}
+                        placeholder="Brief description of the issue"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dispute-description">Description</Label>
+                      <Textarea
+                        id="dispute-description"
+                        value={disputeDescription}
+                        onChange={(e) => setDisputeDescription(e.target.value)}
+                        placeholder="Provide detailed information about the dispute"
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDisputeDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateDispute}
+                      disabled={
+                        !disputeSubject.trim() || !disputeDescription.trim()
+                      }
+                    >
+                      Create Dispute
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog
+                open={showPaymentDialog}
+                onOpenChange={setShowPaymentDialog}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Initiate Payment</DialogTitle>
+                    <DialogDescription>
+                      Send a payment for this project.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="payment-amount">Amount ($)</Label>
+                      <Input
+                        id="payment-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="payment-description">
+                        Description (Optional)
+                      </Label>
+                      <Input
+                        id="payment-description"
+                        value={paymentDescription}
+                        onChange={(e) => setPaymentDescription(e.target.value)}
+                        placeholder="Payment description"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPaymentDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleInitiatePayment}
+                      disabled={!paymentAmount.trim()}
+                    >
+                      Send Payment
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardTitle>
         </CardHeader>
         <Separator />
 
         {/* Messages Container */}
-        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+        <CardContent
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+        >
           {messages.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -255,25 +715,56 @@ const ChatWindow: React.FC = () => {
                     <div
                       key={message.id}
                       className={`flex ${
-                        message.is_own_message ? "justify-end" : "justify-start"
+                        isOwnMessage(message) ? "justify-end" : "justify-start"
                       }`}
                     >
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.is_own_message
+                          message.message_type !== "text"
+                            ? `border ${getMessageTypeStyle(
+                                message.message_type
+                              )}`
+                            : isOwnMessage(message)
                             ? "bg-primary text-primary-foreground"
                             : "bg-gray-100 text-gray-900"
                         }`}
                       >
+                        {/* Message type icon for system messages */}
+                        {message.message_type !== "text" && (
+                          <div className="flex items-center space-x-2 mb-1">
+                            {getMessageTypeIcon(message.message_type)}
+                            <span className="text-xs font-medium uppercase">
+                              {message.message_type.replace("_", " ")}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="text-sm">{message.message}</div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            message.is_own_message
-                              ? "text-primary-foreground/70"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {formatTime(message.sent_at)}
+
+                        <div className="flex items-center justify-between mt-1">
+                          <div
+                            className={`text-xs ${
+                              message.message_type !== "text"
+                                ? "text-current/70"
+                                : isOwnMessage(message)
+                                ? "text-primary-foreground/70"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {formatTime(message.sent_at)}
+                            {message.edited_at && " (edited)"}
+                          </div>
+
+                          {/* Read receipt for own messages */}
+                          {isOwnMessage(message) && (
+                            <div className="ml-2">
+                              {message.is_read ? (
+                                <CheckCheck className="h-3 w-3 text-blue-500" />
+                              ) : (
+                                <Check className="h-3 w-3 text-gray-400" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -282,8 +773,48 @@ const ChatWindow: React.FC = () => {
               </div>
             ))
           )}
+
+          {/* Typing Indicators */}
+          {typingUsers.size > 0 && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 px-4 py-2 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                    <div
+                      className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.1s" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {Array.from(typingUsers).join(", ")}{" "}
+                    {typingUsers.size === 1 ? "is" : "are"} typing...
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </CardContent>
+
+        {/* Scroll to bottom button */}
+        {showScrollButton && (
+          <div className="absolute bottom-20 right-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToBottom}
+              className="rounded-full h-10 w-10 p-0 shadow-lg"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Message Input */}
         <div className="p-4 border-t">
@@ -291,11 +822,15 @@ const ChatWindow: React.FC = () => {
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
               placeholder="Type your message..."
-              disabled={isSending}
+              disabled={isSending || !isConnected}
               className="flex-1"
             />
-            <Button type="submit" disabled={isSending || !newMessage.trim()}>
+            <Button
+              type="submit"
+              disabled={isSending || !newMessage.trim() || !isConnected}
+            >
               {isSending ? (
                 <Clock className="h-4 w-4" />
               ) : (
@@ -303,6 +838,12 @@ const ChatWindow: React.FC = () => {
               )}
             </Button>
           </form>
+
+          {!isConnected && (
+            <p className="text-xs text-red-600 mt-1">
+              Connection lost. Messages will be sent when reconnected.
+            </p>
+          )}
         </div>
       </Card>
     </div>
