@@ -1,33 +1,23 @@
-"""
-ASGI config for backend project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
-"""
-
-import os
 import socketio
+import asyncio
 import jwt
-from django.core.asgi import get_asgi_application
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 import json
+import os
+import django
 
+# Setup Django before importing models
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+django.setup()
 
-# Initialize Django ASGI application early to ensure the AppRegistry is populated
-django_asgi_app = get_asgi_application()
-
-# Import models after Django setup
-from chat.models import ChatThread, ChatMessage
+from .models import ChatThread, ChatMessage
 
 User = get_user_model()
 
-# Create Socket.IO server
+# Create Socket.IO server with Redis adapter
 sio = socketio.AsyncServer(
     cors_allowed_origins="*",
     async_mode='asgi',
@@ -35,7 +25,6 @@ sio = socketio.AsyncServer(
     engineio_logger=True
 )
 
-# Socket.IO event handlers (moved from socketio_server.py)
 @sync_to_async
 def get_user_from_token(token):
     """Decode JWT token and get user"""
@@ -62,9 +51,9 @@ def save_message(thread, user, content, message_type='text'):
     message = ChatMessage.objects.create(
         thread=thread,
         sender=user,
-        message=content,
+        content=content,
         message_type=message_type,
-        sent_at=timezone.now()
+        timestamp=timezone.now()
     )
     return message
 
@@ -81,18 +70,18 @@ def mark_messages_as_read(thread, user):
 @sync_to_async
 def get_thread_messages(thread, limit=50):
     """Get thread messages"""
-    messages = ChatMessage.objects.filter(thread=thread).order_by('-sent_at')[:limit]
+    messages = ChatMessage.objects.filter(thread=thread).order_by('-timestamp')[:limit]
     return [
         {
             'id': msg.id,
-            'content': msg.message,
+            'content': msg.content,
             'sender': {
                 'id': msg.sender.id,
                 'username': msg.sender.username,
                 'first_name': msg.sender.first_name,
                 'last_name': msg.sender.last_name,
             },
-            'timestamp': msg.sent_at.isoformat(),
+            'timestamp': msg.timestamp.isoformat(),
             'message_type': msg.message_type,
             'is_read': msg.is_read
         }
@@ -150,7 +139,7 @@ async def disconnect(sid):
         print(f"User {username} disconnected from session {sid}")
         
         # Leave all rooms
-        rooms = sio.manager.get_rooms(sid, namespace='/')
+        rooms = sio.manager.get_rooms(sid)
         for room in rooms:
             if room != sid:  # Don't leave own room
                 await sio.leave_room(sid, room)
@@ -203,6 +192,32 @@ async def join_thread(sid, data):
         await sio.emit('error', {'message': 'Failed to join thread'}, room=sid)
 
 @sio.event
+async def leave_thread(sid, data):
+    """Leave a chat thread room"""
+    try:
+        session = await sio.get_session(sid)
+        if not session.get('authenticated'):
+            return
+        
+        thread_id = data.get('thread_id')
+        if not thread_id:
+            return
+        
+        room_name = f"thread_{thread_id}"
+        await sio.leave_room(sid, room_name)
+        
+        # Notify others in the room
+        await sio.emit('user_left', {
+            'user': session.get('username'),
+            'thread_id': thread_id
+        }, room=room_name)
+        
+        print(f"User {session.get('username')} left thread {thread_id}")
+        
+    except Exception as e:
+        print(f"Leave thread error for {sid}: {str(e)}")
+
+@sio.event
 async def send_message(sid, data):
     """Send a message to a thread"""
     try:
@@ -241,7 +256,7 @@ async def send_message(sid, data):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
             },
-            'timestamp': message.sent_at.isoformat(),
+            'timestamp': message.timestamp.isoformat(),
             'message_type': message_type,
             'is_read': False
         }
@@ -330,5 +345,7 @@ async def mark_as_read(sid, data):
     except Exception as e:
         print(f"Mark as read error for {sid}: {str(e)}")
 
-# Create the combined ASGI application
-application = socketio.ASGIApp(sio, django_asgi_app)
+# Create ASGI application
+app = socketio.ASGIApp(sio, static_files={
+    '/': {'content_type': 'text/html', 'filename': 'index.html'}
+})

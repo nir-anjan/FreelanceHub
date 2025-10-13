@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Chat Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .container {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 30px;
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .form-group {
+        margin: 15px 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      textarea,
+      button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      input,
+      textarea {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+      }
+      button {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+        margin: 5px 0;
+        transition: all 0.3s ease;
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .status {
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+        font-weight: bold;
+        text-align: center;
+      }
+      .connected {
+        background: rgba(34, 197, 94, 0.8);
+      }
+      .disconnected {
+        background: rgba(239, 68, 68, 0.8);
+      }
+      .connecting {
+        background: rgba(234, 179, 8, 0.8);
+      }
+      #messages {
+        height: 300px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .message {
+        margin: 5px 0;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        border-left: 4px solid #667eea;
+      }
+      .sent {
+        border-left-color: #10b981;
+      }
+      .error {
+        border-left-color: #ef4444;
+        background: rgba(239, 68, 68, 0.2);
+      }
+      .system {
+        border-left-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 Socket.IO Chat Test</h1>
+
+      <div id="connectionStatus" class="status disconnected">Disconnected</div>
+
+      <div class="form-group">
+        <label for="tokenInput">JWT Access Token:</label>
+        <textarea
+          id="tokenInput"
+          rows="3"
+          placeholder="Paste your JWT token here..."
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="threadInput">Thread ID:</label>
+        <input type="number" id="threadInput" value="2" />
+      </div>
+
+      <button id="connectBtn" onclick="connectSocket()">
+        Connect to Socket.IO
+      </button>
+      <button id="disconnectBtn" onclick="disconnectSocket()" disabled>
+        Disconnect
+      </button>
+
+      <div class="form-group">
+        <label for="messageInput">Message:</label>
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="Type your message..."
+          onkeypress="handleKeyPress(event)"
+        />
+      </div>
+
+      <button id="sendBtn" onclick="sendMessage()" disabled>
+        Send Message
+      </button>
+      <button id="typingBtn" onclick="sendTyping()" disabled>
+        Send Typing Indicator
+      </button>
+      <button id="markReadBtn" onclick="markAsRead()" disabled>
+        Mark as Read
+      </button>
+
+      <div id="messages"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      let socket = null;
+      let currentThreadId = null;
+
+      const statusDiv = document.getElementById("connectionStatus");
+      const messagesDiv = document.getElementById("messages");
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const sendBtn = document.getElementById("sendBtn");
+      const typingBtn = document.getElementById("typingBtn");
+      const markReadBtn = document.getElementById("markReadBtn");
+
+      function addMessage(message, isOutgoing = false, type = "normal") {
+        const messageEl = document.createElement("div");
+        messageEl.className = `message ${isOutgoing ? "sent" : ""} ${type}`;
+        messageEl.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+        messagesDiv.appendChild(messageEl);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function updateStatus(status, className) {
+        statusDiv.textContent = status;
+        statusDiv.className = `status ${className}`;
+      }
+
+      function updateButtons(connected) {
+        connectBtn.disabled = connected;
+        disconnectBtn.disabled = !connected;
+        sendBtn.disabled = !connected;
+        typingBtn.disabled = !connected;
+        markReadBtn.disabled = !connected;
+      }
+
+      function connectSocket() {
+        const token = document.getElementById("tokenInput").value.trim();
+        const threadId = parseInt(document.getElementById("threadInput").value);
+
+        if (!token) {
+          alert("Please enter a JWT token");
+          return;
+        }
+
+        if (!threadId) {
+          alert("Please enter a thread ID");
+          return;
+        }
+
+        currentThreadId = threadId;
+        updateStatus("Connecting...", "connecting");
+
+        // Create Socket.IO connection
+        socket = io("http://localhost:8002", {
+          auth: {
+            token: token,
+          },
+          transports: ["websocket", "polling"],
+        });
+
+        // Connection events
+        socket.on("connect", () => {
+          updateStatus("Connected", "connected");
+          updateButtons(true);
+          addMessage("Connected to Socket.IO server", true, "system");
+        });
+
+        socket.on("connection_confirmed", (data) => {
+          addMessage(
+            `Connection confirmed for user: ${data.user.username}`,
+            false,
+            "system"
+          );
+          // Join the thread
+          socket.emit("join_thread", { thread_id: currentThreadId });
+        });
+
+        socket.on("thread_joined", (data) => {
+          addMessage(
+            `Joined thread ${data.thread_id} with ${data.messages.length} messages`,
+            false,
+            "system"
+          );
+        });
+
+        socket.on("disconnect", (reason) => {
+          updateStatus("Disconnected", "disconnected");
+          updateButtons(false);
+          addMessage(`Disconnected: ${reason}`, false, "error");
+        });
+
+        socket.on("connect_error", (error) => {
+          updateStatus("Connection Error", "disconnected");
+          updateButtons(false);
+          addMessage(`Connection error: ${error.message}`, false, "error");
+        });
+
+        // Chat events
+        socket.on("new_message", (data) => {
+          addMessage(`${data.sender.username}: ${data.content}`, false);
+        });
+
+        socket.on("typing_start", (data) => {
+          addMessage(`${data.user} is typing...`, false, "system");
+        });
+
+        socket.on("typing_stop", (data) => {
+          addMessage(`${data.user} stopped typing`, false, "system");
+        });
+
+        socket.on("messages_read", (data) => {
+          addMessage(
+            `${data.user} read ${data.count} messages`,
+            false,
+            "system"
+          );
+        });
+
+        socket.on("user_joined", (data) => {
+          addMessage(`${data.user} joined the thread`, false, "system");
+        });
+
+        socket.on("user_left", (data) => {
+          addMessage(`${data.user} left the thread`, false, "system");
+        });
+
+        socket.on("error", (data) => {
+          addMessage(`Error: ${data.message}`, false, "error");
+        });
+      }
+
+      function disconnectSocket() {
+        if (socket) {
+          if (currentThreadId) {
+            socket.emit("leave_thread", { thread_id: currentThreadId });
+          }
+          socket.disconnect();
+          socket = null;
+          currentThreadId = null;
+        }
+      }
+
+      function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const message = messageInput.value.trim();
+
+        if (!message || !socket || !currentThreadId) return;
+
+        socket.emit("send_message", {
+          thread_id: currentThreadId,
+          content: message,
+          type: "text",
+        });
+
+        addMessage(`You: ${message}`, true);
+        messageInput.value = "";
+      }
+
+      function sendTyping() {
+        if (!socket || !currentThreadId) return;
+
+        socket.emit("typing_start", { thread_id: currentThreadId });
+        addMessage("Sent typing indicator", true, "system");
+
+        // Auto-stop typing after 3 seconds
+        setTimeout(() => {
+          if (socket && currentThreadId) {
+            socket.emit("typing_stop", { thread_id: currentThreadId });
+            addMessage("Stopped typing indicator", true, "system");
+          }
+        }, 3000);
+      }
+
+      function markAsRead() {
+        if (!socket || !currentThreadId) return;
+
+        socket.emit("mark_as_read", { thread_id: currentThreadId });
+        addMessage("Marked messages as read", true, "system");
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          sendMessage();
+        }
+      }
+
+      // Initialize
+      updateStatus("Disconnected", "disconnected");
+      updateButtons(false);
+    </script>
+  </body>
+</html>

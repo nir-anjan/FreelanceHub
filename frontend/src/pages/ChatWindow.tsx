@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts";
-import { chatService, ChatWebSocketClient } from "@/services";
+import { chatService } from "@/services";
+import {
+  chatSocketClient,
+  ChatMessage,
+  ConnectionStatus,
+} from "@/services/chatSocketIO";
 import {
   ChatMessageEnhanced,
   ChatThreadEnhanced,
@@ -71,116 +76,194 @@ const ChatWindow: React.FC = () => {
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<ChatWebSocketClient | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Connection status
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("disconnected");
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Parse thread ID
   const threadIdNum = threadId ? parseInt(threadId, 10) : null;
 
-  // WebSocket event handlers
-  const handleWebSocketConnect = useCallback(() => {
-    setIsConnected(true);
-    toast({
-      title: "Connected",
-      description: "Real-time chat connected",
-      duration: 2000,
-    });
+  // Socket.IO event handlers
+  const handleConnectionChange = useCallback((status: ConnectionStatus) => {
+    setConnectionStatus(status);
+    setIsConnected(status === "connected");
+
+    if (status === "connected") {
+      toast({
+        title: "Connected",
+        description: "Real-time chat connected",
+        duration: 2000,
+      });
+    } else if (status === "disconnected") {
+      toast({
+        title: "Disconnected",
+        description: "Lost connection to chat server",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
   }, []);
 
-  const handleWebSocketDisconnect = useCallback(() => {
-    setIsConnected(false);
-  }, []);
-
-  const handleWebSocketError = useCallback((error: string) => {
-    console.error("WebSocket error:", error);
+  const handleSocketError = useCallback((error: { message: string }) => {
+    console.error("Socket.IO error:", error);
     toast({
       title: "Connection Error",
-      description: error,
+      description: error.message,
       variant: "destructive",
     });
   }, []);
 
-  const handleIncomingMessage = useCallback((message: ChatMessageEnhanced) => {
-    setMessages((prev) => {
-      // Check if message already exists to prevent duplicates
-      if (prev.some((m) => m.id === message.id)) {
-        return prev;
-      }
-      return [...prev, message].sort(
-        (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
-      );
-    });
+  const handleIncomingMessage = useCallback(
+    (message: ChatMessage) => {
+      // Convert Socket.IO message format to ChatMessageEnhanced
+      const enhancedMessage: ChatMessageEnhanced = {
+        id: message.id,
+        content: message.content,
+        sender: message.sender,
+        sent_at: message.timestamp,
+        message_type: message.message_type,
+        is_read: message.is_read,
+        metadata: null,
+        thread_id: message.thread_id || threadIdNum || 0,
+      };
 
-    // Auto-scroll if user is near bottom
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
-        setTimeout(scrollToBottom, 100);
+      setMessages((prev) => {
+        // Check if message already exists to prevent duplicates
+        if (prev.some((m) => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, enhancedMessage].sort(
+          (a, b) =>
+            new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
+        );
+      });
+
+      // Auto-scroll if user is near bottom
+      if (messagesContainerRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } =
+          messagesContainerRef.current;
+        if (scrollHeight - scrollTop - clientHeight < 100) {
+          setTimeout(scrollToBottom, 100);
+        }
       }
-    }
-  }, []);
+    },
+    [threadIdNum]
+  );
 
   const handleMessagesRead = useCallback(
-    (messageIds: number[], reader: string) => {
-      if (reader !== user?.username) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
-          )
-        );
+    (data: { user: string; thread_id: number; count: number }) => {
+      if (data.user !== user?.username) {
+        // Mark recent messages as read
+        setMessages((prev) => prev.map((msg) => ({ ...msg, is_read: true })));
       }
     },
     [user?.username]
   );
 
-  const handleTypingIndicator = useCallback(
-    (username: string, isTyping: boolean) => {
-      setTypingUsers((prev) => {
-        const newSet = new Set(prev);
-        if (isTyping) {
-          newSet.add(username);
-        } else {
-          newSet.delete(username);
-        }
-        return newSet;
-      });
+  const handleTypingStart = useCallback(
+    (data: { user: string; thread_id: number }) => {
+      if (data.user !== user?.username && data.thread_id === threadIdNum) {
+        setTypingUsers((prev) => new Set([...prev, data.user]));
+      }
+    },
+    [user?.username, threadIdNum]
+  );
+
+  const handleTypingStop = useCallback(
+    (data: { user: string; thread_id: number }) => {
+      if (data.user !== user?.username && data.thread_id === threadIdNum) {
+        setTypingUsers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(data.user);
+          return newSet;
+        });
+      }
+    },
+    [user?.username, threadIdNum]
+  );
+
+  const handleThreadJoined = useCallback(
+    (data: { thread_id: number; messages: ChatMessage[] }) => {
+      console.log("Thread joined with messages:", data.messages.length);
+      // Messages are already loaded via REST API, so we don't need to replace them
     },
     []
   );
 
-  // Initialize WebSocket connection
+  // Retry connection handler
+  const handleRetryConnection = useCallback(async () => {
+    if (!token || isRetrying) return;
+
+    setIsRetrying(true);
+    try {
+      await chatSocketClient.retryConnection();
+      if (threadIdNum) {
+        chatSocketClient.joinThread(threadIdNum);
+      }
+      toast({
+        title: "Reconnected",
+        description: "Successfully reconnected to chat server",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error("Retry connection failed:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to reconnect. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [token, threadIdNum, isRetrying]);
+
+  // Initialize Socket.IO connection
   useEffect(() => {
     if (!threadIdNum || !token || !user) return;
 
-    const wsClient = new ChatWebSocketClient(threadIdNum, token, {
-      onConnect: handleWebSocketConnect,
-      onDisconnect: handleWebSocketDisconnect,
-      onError: handleWebSocketError,
+    // Set up event handlers
+    chatSocketClient.setEventHandlers({
+      onConnectionChange: handleConnectionChange,
+      onError: handleSocketError,
       onMessage: handleIncomingMessage,
       onMessagesRead: handleMessagesRead,
-      onTypingIndicator: handleTypingIndicator,
+      onTypingStart: handleTypingStart,
+      onTypingStop: handleTypingStop,
+      onThreadJoined: handleThreadJoined,
     });
 
-    wsRef.current = wsClient;
-    wsClient.connect().catch((error) => {
-      console.error("Failed to connect WebSocket:", error);
-    });
+    // Connect to Socket.IO server
+    chatSocketClient
+      .connect(token)
+      .then(() => {
+        // Join the specific thread
+        chatSocketClient.joinThread(threadIdNum);
+      })
+      .catch((error) => {
+        console.error("Failed to connect Socket.IO:", error);
+      });
 
     return () => {
-      wsClient.disconnect();
-      wsRef.current = null;
+      // Leave thread and disconnect
+      if (chatSocketClient.isConnected()) {
+        chatSocketClient.leaveThread(threadIdNum);
+      }
+      chatSocketClient.disconnect();
     };
   }, [
     threadIdNum,
     token,
     user,
-    handleWebSocketConnect,
-    handleWebSocketDisconnect,
-    handleWebSocketError,
+    handleConnectionChange,
+    handleSocketError,
     handleIncomingMessage,
     handleMessagesRead,
-    handleTypingIndicator,
+    handleTypingStart,
+    handleTypingStop,
+    handleThreadJoined,
   ]);
 
   // Load initial data
@@ -230,8 +313,8 @@ const ChatWindow: React.FC = () => {
 
       if (unreadMessages.length > 0) {
         await chatService.markMessagesRead(threadIdNum, unreadMessages);
-        // Also send via WebSocket
-        wsRef.current?.markMessagesRead(unreadMessages);
+        // Also send via Socket.IO
+        chatSocketClient.markAsRead(threadIdNum);
       }
     } catch (error) {
       console.error("Error loading chat data:", error);
@@ -254,11 +337,11 @@ const ChatWindow: React.FC = () => {
     setIsSending(true);
 
     try {
-      // Send via WebSocket for real-time delivery
-      const wsSuccess = wsRef.current?.sendMessage(messageToSend);
-
-      if (!wsSuccess) {
-        // Fallback to REST API if WebSocket is not connected
+      // Send via Socket.IO for real-time delivery
+      if (chatSocketClient.isConnected()) {
+        chatSocketClient.sendMessage(threadIdNum, messageToSend);
+      } else {
+        // Fallback to REST API if Socket.IO is not connected
         await chatService.sendMessage(threadIdNum, { message: messageToSend });
         // Reload messages to ensure consistency
         await loadChatData();
@@ -280,9 +363,9 @@ const ChatWindow: React.FC = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
-    } else {
+    } else if (threadIdNum) {
       // Send typing indicator
-      wsRef.current?.sendTypingStart();
+      chatSocketClient.startTyping(threadIdNum);
     }
   };
 
@@ -528,19 +611,68 @@ const ChatWindow: React.FC = () => {
 
         {/* Connection Status */}
         <div className="flex items-center space-x-2">
-          {isConnected ? (
+          {connectionStatus === "connected" ? (
             <div className="flex items-center space-x-1 text-green-600">
               <Wifi className="h-4 w-4" />
               <span className="text-xs">Connected</span>
             </div>
+          ) : connectionStatus === "connecting" ||
+            connectionStatus === "reconnecting" ||
+            isRetrying ? (
+            <div className="flex items-center space-x-1 text-yellow-600">
+              <Wifi className="h-4 w-4" />
+              <span className="text-xs">
+                {isRetrying ? "Retrying..." : "Connecting..."}
+              </span>
+            </div>
           ) : (
-            <div className="flex items-center space-x-1 text-red-600">
+            <div className="flex items-center space-x-2 text-red-600">
               <WifiOff className="h-4 w-4" />
               <span className="text-xs">Disconnected</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetryConnection}
+                disabled={isRetrying}
+                className="h-6 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50"
+              >
+                Retry
+              </Button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Connection Status Alert */}
+      {connectionStatus !== "connected" && (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-yellow-700">
+                <AlertTriangle className="h-4 w-4" />
+                <span>
+                  {connectionStatus === "connecting" ||
+                  connectionStatus === "reconnecting" ||
+                  isRetrying
+                    ? "Connecting to real-time chat..."
+                    : "Connection lost. Messages will be sent when reconnected."}
+                </span>
+              </div>
+              {connectionStatus === "disconnected" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetryConnection}
+                  disabled={isRetrying}
+                  className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                >
+                  {isRetrying ? "Retrying..." : "Retry Connection"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Job Context */}
       {thread?.job && (
