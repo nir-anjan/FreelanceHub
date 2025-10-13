@@ -6,11 +6,17 @@ export interface ChatMessage {
   sender: {
     id: number;
     username: string;
+    email: string;
     first_name: string;
     last_name: string;
   };
   timestamp: string;
-  message_type: string;
+  message_type:
+    | "text"
+    | "system"
+    | "payment_completed"
+    | "dispute_created"
+    | "job_update";
   is_read: boolean;
   thread_id?: number;
 }

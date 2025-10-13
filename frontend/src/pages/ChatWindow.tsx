@@ -121,13 +121,21 @@ const ChatWindow: React.FC = () => {
       // Convert Socket.IO message format to ChatMessageEnhanced
       const enhancedMessage: ChatMessageEnhanced = {
         id: message.id,
-        content: message.content,
+        thread: message.thread_id || threadIdNum || 0,
         sender: message.sender,
-        sent_at: message.timestamp,
+        sender_type:
+          message.sender.id === user?.id
+            ? user.role === "client"
+              ? "client"
+              : "freelancer"
+            : user?.role === "client"
+            ? "freelancer"
+            : "client",
+        message: message.content,
         message_type: message.message_type,
+        sent_at: message.timestamp,
         is_read: message.is_read,
         metadata: null,
-        thread_id: message.thread_id || threadIdNum || 0,
       };
 
       setMessages((prev) => {

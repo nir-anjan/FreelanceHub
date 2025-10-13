@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/services";
+import httpClient from "@/services/httpClient";
 import {
   User,
   AuthContextType,
@@ -25,6 +26,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for logout events from httpClient
     const handleLogout = () => {
       setUser(null);
+      setToken(null);
       setIsAuthenticated(false);
     };
 
@@ -51,6 +54,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
 
       if (authService.isAuthenticated()) {
+        // Get current token
+        const currentToken = httpClient.getAccessToken();
+        setToken(currentToken);
+
         // Try to get user profile to verify token validity
         const userData = authService.getStoredUser();
 
@@ -69,6 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear any invalid tokens
       await authService.logout();
       setUser(null);
+      setToken(null);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -86,6 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.success) {
         setUser(response.data.user);
+        setToken(httpClient.getAccessToken());
         setIsAuthenticated(true);
 
         toast({
@@ -182,6 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await authService.logout();
 
       setUser(null);
+      setToken(null);
       setIsAuthenticated(false);
 
       toast({
@@ -261,6 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const contextValue: AuthContextType = {
     user,
+    token,
     isAuthenticated,
     isLoading,
     login,

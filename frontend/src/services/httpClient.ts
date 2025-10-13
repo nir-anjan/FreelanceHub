@@ -189,6 +189,10 @@ class HttpClient {
     this.clearTokens();
   }
 
+  public getAccessToken(): string | null {
+    return this.getStoredToken();
+  }
+
   public isAuthenticated(): boolean {
     const token = this.getStoredToken();
     if (!token) return false;

@@ -142,6 +142,7 @@ export interface DecodedToken {
 // Auth Context Types
 export interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (
