@@ -159,15 +159,12 @@ export const publicListingsService = {
   async getJobCategories(): Promise<string[]> {
     try {
       const response = await this.getAllJobs({ page_size: 1000 }); // Get many jobs to extract categories
-      const categories = [
-        ...new Set(
-          response.data.jobs
-            .map((job) => job.category)
-            .filter((category): category is string =>
-              Boolean(category && category.trim() !== "")
-            )
-        ),
-      ];
+      const filteredCategories = response.data.jobs
+        .map((job) => job.category)
+        .filter((category): category is string =>
+          Boolean(category && category.trim() !== "")
+        );
+      const categories = [...new Set(filteredCategories)] as string[];
       return categories.sort();
     } catch (error) {
       console.error("Error fetching job categories:", error);
@@ -179,15 +176,12 @@ export const publicListingsService = {
   async getFreelancerCategories(): Promise<string[]> {
     try {
       const response = await this.getAllFreelancers({ page_size: 1000 }); // Get many freelancers to extract categories
-      const categories = [
-        ...new Set(
-          response.data.freelancers
-            .map((freelancer) => freelancer.category)
-            .filter((category): category is string =>
-              Boolean(category && category.trim() !== "")
-            )
-        ),
-      ];
+      const filteredCategories = response.data.freelancers
+        .map((freelancer) => freelancer.category)
+        .filter((category): category is string =>
+          Boolean(category && category.trim() !== "")
+        );
+      const categories = [...new Set(filteredCategories)] as string[];
       return categories.sort();
     } catch (error) {
       console.error("Error fetching freelancer categories:", error);

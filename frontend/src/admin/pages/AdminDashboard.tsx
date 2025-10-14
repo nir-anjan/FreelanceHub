@@ -105,7 +105,7 @@ export const AdminDashboard = () => {
         { status: "Pending", count: stats.pending_jobs, fill: "#f59e0b" },
         {
           status: "Total",
-          count: stats.total_jobs - stats.open_jobs - stats.pending_jobs,
+          count: stats.total_jobs,
           fill: "#22c55e",
         },
       ]
