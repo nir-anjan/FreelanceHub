@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     # Local apps
     'api.auth.apps.AuthConfig',
     'chat',
+    'disputes',
 ]
 
 MIDDLEWARE = [

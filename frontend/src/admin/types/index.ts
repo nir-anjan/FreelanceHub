@@ -33,25 +33,27 @@ export interface User {
 
 // Dispute related types
 export interface Dispute {
-  id: string;
-  jobId: string;
-  jobTitle: string;
+  id: number;
+  job: {
+    id: number;
+    title: string;
+  };
   client: {
-    id: string;
+    id: number;
     name: string;
-    avatar?: string;
+    username: string;
   };
   freelancer: {
-    id: string;
+    id: number;
     name: string;
-    avatar?: string;
+    username: string;
   };
-  amount: number;
   description: string;
-  status: "open" | "resolved";
-  createdDate: string;
-  resolvedDate?: string;
-  adminNotes?: string;
+  status: "open" | "resolved" | "dismissed";
+  resolution?: string;
+  created_at: string;
+  resolved_at?: string;
+  resolved_by?: string;
 }
 
 // Transaction related types

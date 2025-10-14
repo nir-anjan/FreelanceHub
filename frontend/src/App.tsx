@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import { AdminDashboard } from "./admin/pages/AdminDashboard";
 import { AdminJobs } from "./admin/pages/AdminJobs";
 import { AdminUsers } from "./admin/pages/AdminUsers";
+import AdminDisputes from "./admin/pages/AdminDisputes";
 import AdminLogin from "./admin/pages/AdminLogin";
 // Dashboard Components
 import DashboardLayout from "./components/DashboardLayout";
@@ -100,6 +101,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminUsers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/disputes"
+              element={
+                <AdminRoute>
+                  <AdminDisputes />
                 </AdminRoute>
               }
             />

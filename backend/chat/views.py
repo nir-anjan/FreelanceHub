@@ -267,11 +267,14 @@ def create_dispute_from_chat(request, thread_id):
     subject = request.data.get('subject', '')
     description = request.data.get('description', '')
     
-    if not subject or not description:
+    if not description:
         return Response(
-            {'error': 'Subject and description are required'}, 
+            {'error': 'Description is required'}, 
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+    # Combine subject and description for the dispute description field
+    full_description = f"{subject}: {description}" if subject else description
     
     try:
         # Create dispute
@@ -279,20 +282,20 @@ def create_dispute_from_chat(request, thread_id):
             client=thread.client,
             freelancer=thread.freelancer,
             job=thread.job,
-            subject=subject,
-            description=description,
-            created_by=user
+            description=full_description,
+            status='open'  # Automatically set to open for admin review
         )
         
         # Create system message in chat
+        dispute_title = subject if subject else f"Dispute #{dispute.id}"
         system_message = ChatMessage.objects.create(
             thread=thread,
             sender=user,
-            message=f"Dispute created: {subject}",
+            message=f"Dispute created: {dispute_title}",
             message_type='dispute_created',
             metadata={
                 'dispute_id': dispute.id,
-                'subject': subject,
+                'subject': subject or f"Dispute #{dispute.id}",
                 'description': description
             }
         )
@@ -323,7 +326,8 @@ def create_dispute_from_chat(request, thread_id):
         return Response({
             'status': 'success',
             'dispute_id': dispute.id,
-            'message': 'Dispute created successfully'
+            'message': 'Dispute created successfully and sent to admin for review',
+            'dispute_status': 'open'
         })
         
     except Exception as e:

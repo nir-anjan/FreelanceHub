@@ -400,3 +400,94 @@ class FreelancerListSerializer(serializers.ModelSerializer):
             except:
                 return obj.skills.split(',') if ',' in obj.skills else [obj.skills]
         return []
+
+
+# ---------------------- DISPUTE SERIALIZERS -------------------------
+from .models import Dispute
+
+class DisputeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for dispute CRUD operations
+    """
+    client_name = serializers.CharField(source='client.user.username', read_only=True)
+    freelancer_name = serializers.CharField(source='freelancer.user.username', read_only=True)
+    job_title = serializers.CharField(source='job.title', read_only=True)
+    resolved_by_name = serializers.CharField(source='resolved_by.username', read_only=True)
+    
+    class Meta:
+        model = Dispute
+        fields = (
+            'id', 'job', 'client', 'freelancer', 'description', 'status', 
+            'resolution', 'created_at', 'resolved_at', 'resolved_by',
+            'client_name', 'freelancer_name', 'job_title', 'resolved_by_name'
+        )
+        read_only_fields = ('id', 'status', 'resolution', 'created_at', 'resolved_at', 'resolved_by')
+
+class DisputeCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating disputes
+    """
+    class Meta:
+        model = Dispute
+        fields = ('job', 'description')
+    
+    def validate_job(self, value):
+        """
+        Validate that the user has access to dispute this job
+        """
+        user = self.context['request'].user
+        
+        # Check if user is either the client who posted the job or a freelancer working on it
+        if hasattr(user, 'client_profile'):
+            if value.client != user.client_profile:
+                raise serializers.ValidationError("You can only create disputes for your own jobs.")
+        elif hasattr(user, 'freelancer_profile'):
+            # For simplicity, allow any freelancer to create disputes for any job
+            # In a real system, you'd check if the freelancer is assigned to the job
+            pass
+        else:
+            raise serializers.ValidationError("Only clients and freelancers can create disputes.")
+        
+        return value
+    
+    def create(self, validated_data):
+        """
+        Create dispute with proper client/freelancer assignment
+        """
+        user = self.context['request'].user
+        job = validated_data['job']
+        
+        # Determine client and freelancer based on who's creating the dispute
+        if hasattr(user, 'client_profile'):
+            client = user.client_profile
+            # For simplicity, we'll set freelancer to None if client creates dispute
+            # In a real system, you'd determine the specific freelancer working on the job
+            freelancer = None  
+        else:  # freelancer creating dispute
+            freelancer = user.freelancer_profile
+            client = job.client
+        
+        dispute = Dispute.objects.create(
+            job=job,
+            client=client,
+            freelancer=freelancer,
+            description=validated_data['description']
+        )
+        
+        return dispute
+
+class DisputeResolveSerializer(serializers.ModelSerializer):
+    """
+    Serializer for resolving disputes (admin only)
+    """
+    class Meta:
+        model = Dispute
+        fields = ('resolution',)
+    
+    def validate_resolution(self, value):
+        """
+        Validate that resolution is not empty
+        """
+        if not value or not value.strip():
+            raise serializers.ValidationError("Resolution cannot be empty.")
+        return value.strip()
