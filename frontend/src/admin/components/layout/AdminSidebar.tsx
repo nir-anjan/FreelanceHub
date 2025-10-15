@@ -11,47 +11,43 @@ import {
   X,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useAdminStats } from "@/hooks/useAdminStats";
 
 interface AdminSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const navigationItems = [
-  {
-    title: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-    count: null,
-  },
-  {
-    title: "Jobs Pending",
-    href: "/admin/jobs",
-    icon: FileText,
-    count: 12, // Mock count
-  },
-  {
-    title: "Disputes",
-    href: "/admin/disputes",
-    icon: Scale,
-    count: 3, // Mock count
-  },
-  {
-    title: "Users",
-    href: "/admin/users",
-    icon: Users,
-    count: null,
-  },
-  {
-    title: "Transactions",
-    href: "/admin/transactions",
-    icon: CreditCard,
-    count: null,
-  },
-];
-
 export const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
   const location = useLocation();
+  const { stats, loading, error } = useAdminStats();
+
+  const navigationItems = [
+    {
+      title: "Dashboard",
+      href: "/admin",
+      icon: LayoutDashboard,
+      count: null,
+    },
+    {
+      title: "Jobs Pending",
+      href: "/admin/jobs",
+      icon: FileText,
+      count: loading || error ? null : stats?.pending_jobs || 0,
+    },
+    {
+      title: "Disputes",
+      href: "/admin/disputes",
+      icon: Scale,
+      count: loading || error ? null : stats?.open_disputes || 0,
+    },
+    {
+      title: "Users",
+      href: "/admin/users",
+      icon: Users,
+      count: null,
+    },
+  ];
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
@@ -85,12 +81,12 @@ export const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
                 <Link to={item.href} onClick={() => onClose()}>
                   <Icon className="h-5 w-5" />
                   <span className="flex-1 text-left">{item.title}</span>
-                  {item.count && (
+                  {(item.count !== null || loading) && (
                     <Badge
                       variant={isActive ? "secondary" : "default"}
                       className="ml-auto h-5 px-2 text-xs"
                     >
-                      {item.count}
+                      {loading ? "..." : error ? "!" : item.count}
                     </Badge>
                   )}
                 </Link>
