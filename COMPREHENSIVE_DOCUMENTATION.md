@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** October 15, 2025  
-**Repository:** FreelanceMarketplace  
+**Repository:** FreelanceMarketplace
 
 ## Table of Contents
 
@@ -41,6 +41,7 @@ FreelanceMarketplace is a comprehensive full-stack web application that connects
 ### Technology Stack
 
 **Frontend:**
+
 - React 18 with TypeScript
 - Vite for build tooling
 - Tailwind CSS for styling
@@ -49,6 +50,7 @@ FreelanceMarketplace is a comprehensive full-stack web application that connects
 - Axios for HTTP requests
 
 **Backend:**
+
 - Django 5.2.7 with Django REST Framework
 - PostgreSQL database
 - Socket.IO server for real-time communication
@@ -123,6 +125,7 @@ FreelanceMarketplace/
 ### Implementation Details
 
 **Backend Models:**
+
 ```python
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -145,6 +148,7 @@ class Freelancer(models.Model):
 ```
 
 **Frontend Routes Protection:**
+
 - `ProtectedRoute`: Requires authentication
 - `AdminRoute`: Requires admin role
 - `RoleBasedRoute`: Flexible role-based access
@@ -165,18 +169,21 @@ The backend is organized into distinct Django apps:
 ### Key Backend Features
 
 **API Endpoints:**
+
 - RESTful API design with consistent response format
 - Pagination support for large datasets
 - Comprehensive error handling
 - JWT-based authentication
 
 **Database Design:**
+
 - PostgreSQL with proper indexing
 - Foreign key relationships with CASCADE/PROTECT
 - Timestamp fields for audit trails
 - Optimized queries with select_related/prefetch_related
 
 **Security Features:**
+
 - CORS configuration for frontend access
 - JWT token authentication
 - Role-based permissions
@@ -189,6 +196,7 @@ The backend is organized into distinct Django apps:
 ### React Application Structure
 
 **Component Organization:**
+
 ```
 src/
 ├── components/
@@ -210,11 +218,13 @@ src/
 ```
 
 **State Management:**
+
 - React Context for global state (auth, theme)
 - Local component state for UI interactions
 - Service classes for API communication
 
 **Routing:**
+
 - React Router v6 for navigation
 - Protected routes with role-based access
 - Lazy loading for code splitting
@@ -228,6 +238,7 @@ src/
 The chat system uses Socket.IO for real-time messaging between clients and freelancers.
 
 **Architecture:**
+
 ```
 Client ←→ Socket.IO Server ←→ Database
    ↑                            ↓
@@ -235,6 +246,7 @@ Client ←→ Socket.IO Server ←→ Database
 ```
 
 **Features:**
+
 - Real-time messaging
 - Chat thread management
 - Message history persistence
@@ -244,6 +256,7 @@ Client ←→ Socket.IO Server ←→ Database
 **Implementation:**
 
 **Backend (Socket.IO Server):**
+
 ```python
 # socketio_server.py
 @sio.event
@@ -255,21 +268,23 @@ def send_message(sid, data):
 ```
 
 **Frontend (Socket.IO Client):**
+
 ```typescript
 // chatService.ts
 export class ChatService {
   private socket: Socket;
-  
+
   sendMessage(threadId: number, content: string) {
-    this.socket.emit('send_message', {
+    this.socket.emit("send_message", {
       thread_id: threadId,
-      content: content
+      content: content,
     });
   }
 }
 ```
 
 **Database Models:**
+
 ```python
 class ChatThread(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
@@ -292,6 +307,7 @@ class ChatMessage(models.Model):
 The payment system integrates with Razorpay for secure payment processing.
 
 **Payment Flow:**
+
 1. Client initiates payment for a job
 2. Backend creates Razorpay order
 3. Frontend displays Razorpay checkout
@@ -301,6 +317,7 @@ The payment system integrates with Razorpay for secure payment processing.
 **Implementation:**
 
 **Backend Payment Model:**
+
 ```python
 class Payment(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
@@ -308,7 +325,7 @@ class Payment(models.Model):
     freelancer = models.ForeignKey(Freelancer, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=50, default='pending')
-    
+
     # Razorpay fields
     razorpay_order_id = models.CharField(max_length=255)
     razorpay_payment_id = models.CharField(max_length=255)
@@ -316,27 +333,29 @@ class Payment(models.Model):
 ```
 
 **Frontend Payment Integration:**
+
 ```typescript
 // Payment component
 const handlePayment = async (jobId: number, amount: number) => {
   const order = await paymentService.createOrder(jobId, amount);
-  
+
   const options = {
     key: process.env.VITE_RAZORPAY_KEY_ID,
     amount: order.amount,
-    currency: 'INR',
+    currency: "INR",
     order_id: order.id,
     handler: async (response: any) => {
       await paymentService.verifyPayment(response);
-    }
+    },
   };
-  
+
   const rzp = new window.Razorpay(options);
   rzp.open();
 };
 ```
 
 **Security Features:**
+
 - Signature verification for webhook authenticity
 - Amount validation on backend
 - Idempotency checks for duplicate payments
@@ -351,6 +370,7 @@ const handlePayment = async (jobId: number, amount: number) => {
 The admin dashboard provides complete oversight of the platform.
 
 **Features:**
+
 - User management (clients, freelancers)
 - Job moderation and approval
 - Payment monitoring and analytics
@@ -360,24 +380,28 @@ The admin dashboard provides complete oversight of the platform.
 **Admin Components:**
 
 1. **Dashboard Overview:**
+
    - User statistics
    - Revenue analytics
    - Recent activity
    - System health metrics
 
 2. **User Management:**
+
    - User listing with filters
    - Account activation/deactivation
    - Role management
    - Profile verification
 
 3. **Job Moderation:**
+
    - Pending job approvals
    - Job content review
    - Category management
    - Quality control
 
 4. **Payment Monitoring:**
+
    - Transaction history
    - Payment status tracking
    - Refund processing
@@ -390,6 +414,7 @@ The admin dashboard provides complete oversight of the platform.
    - Communication tools
 
 **Analytics Implementation:**
+
 ```python
 class AdminAnalyticsAPIView(APIView):
     def get(self, request):
@@ -401,7 +426,7 @@ class AdminAnalyticsAPIView(APIView):
         ).values('month').annotate(
             revenue=Sum('amount')
         ).order_by('month')
-        
+
         # User growth data
         user_data = User.objects.annotate(
             month=TruncMonth('date_joined')
@@ -419,12 +444,14 @@ class AdminAnalyticsAPIView(APIView):
 The platform includes a comprehensive dispute management system.
 
 **Dispute Types:**
+
 - Payment disputes
-- Quality disputes  
+- Quality disputes
 - Communication issues
 - Deadline disputes
 
 **Resolution Process:**
+
 1. Dispute filing by client or freelancer
 2. Automated evidence collection
 3. Admin review and investigation
@@ -432,6 +459,7 @@ The platform includes a comprehensive dispute management system.
 5. Outcome implementation
 
 **Implementation:**
+
 ```python
 class Dispute(models.Model):
     DISPUTE_TYPES = [
@@ -440,7 +468,7 @@ class Dispute(models.Model):
         ('communication', 'Communication'),
         ('deadline', 'Deadline Issue'),
     ]
-    
+
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     filed_by = models.ForeignKey(User, on_delete=models.CASCADE)
     dispute_type = models.CharField(max_length=20, choices=DISPUTE_TYPES)
@@ -458,12 +486,14 @@ class Dispute(models.Model):
 Public-facing pages for job browsing and freelancer discovery.
 
 **Features:**
+
 - Job listings with search and filters
 - Freelancer profiles with skills and ratings
 - Category-based browsing
 - Advanced search capabilities
 
 **SEO Optimization:**
+
 - Server-side rendering for better SEO
 - Structured data markup
 - Optimized meta tags
@@ -478,6 +508,7 @@ Public-facing pages for job browsing and freelancer discovery.
 All APIs follow consistent patterns and response formats.
 
 **Response Format:**
+
 ```json
 {
   "success": true,
@@ -489,6 +520,7 @@ All APIs follow consistent patterns and response formats.
 ```
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -502,23 +534,27 @@ All APIs follow consistent patterns and response formats.
 ### Key API Endpoints
 
 **Authentication:**
+
 - `POST /api/auth/register/` - User registration
-- `POST /api/auth/login/` - User login  
+- `POST /api/auth/login/` - User login
 - `POST /api/auth/logout/` - User logout
 - `POST /api/auth/token/refresh/` - Token refresh
 
 **Jobs:**
+
 - `GET /api/auth/jobs/` - List jobs
 - `POST /api/auth/jobs/create/` - Create job
 - `GET /api/auth/jobs/{id}/` - Job details
 - `PUT /api/auth/jobs/{id}/` - Update job
 
 **Chat:**
+
 - `GET /api/auth/inbox/` - Chat threads
 - `GET /api/auth/inbox/{id}/messages/` - Chat messages
 - `POST /api/auth/inbox/{id}/messages/` - Send message
 
 **Admin:**
+
 - `GET /api/auth/admin/overview/` - Dashboard stats
 - `GET /api/auth/admin/users/` - User management
 - `GET /api/auth/admin/transactions/` - Transaction monitoring
@@ -531,6 +567,7 @@ All APIs follow consistent patterns and response formats.
 ### Core Tables
 
 **Users and Profiles:**
+
 ```sql
 -- Core user table
 CREATE TABLE users (
@@ -548,7 +585,7 @@ CREATE TABLE clients (
     company_name VARCHAR(255)
 );
 
--- Freelancer profiles  
+-- Freelancer profiles
 CREATE TABLE freelancers (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
@@ -559,6 +596,7 @@ CREATE TABLE freelancers (
 ```
 
 **Jobs and Applications:**
+
 ```sql
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
@@ -573,6 +611,7 @@ CREATE TABLE jobs (
 ```
 
 **Chat System:**
+
 ```sql
 CREATE TABLE chat_threads (
     id SERIAL PRIMARY KEY,
@@ -593,6 +632,7 @@ CREATE TABLE chat_messages (
 ```
 
 **Payments:**
+
 ```sql
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
@@ -617,18 +657,21 @@ CREATE TABLE payments (
 All test files are organized in the `testing/` directory:
 
 **Test Categories:**
+
 - `test_api_endpoints.py` - API endpoint testing
-- `test_chat_system.py` - Chat functionality tests  
+- `test_chat_system.py` - Chat functionality tests
 - `test_payment_endpoints.py` - Payment system tests
 - `test_admin_*.py` - Admin dashboard tests
 - `test_dashboard_*.py` - Dashboard functionality tests
 - `test_dispute_*.py` - Dispute system tests
 
 **HTML Test Files:**
+
 - `socketio_test.html` - Socket.IO connection testing
 - `websocket_test*.html` - WebSocket functionality tests
 
 **Test Data:**
+
 - `*_test_tokens.json` - Authentication tokens for testing
 - `workflow_test_tokens.json` - Workflow testing data
 
@@ -642,7 +685,7 @@ python manage.py test
 # API endpoint tests
 python ../testing/test_api_endpoints.py
 
-# Chat system tests  
+# Chat system tests
 python ../testing/test_chat_system.py
 
 # Frontend tests
@@ -657,6 +700,7 @@ npm test
 ### Environment Configuration
 
 **Backend (.env):**
+
 ```env
 DEBUG=False
 SECRET_KEY=your-secret-key
@@ -668,6 +712,7 @@ CORS_ALLOWED_ORIGINS=https://yourdomain.com
 ```
 
 **Frontend (.env):**
+
 ```env
 VITE_API_BASE_URL=https://api.yourdomain.com/api
 VITE_DJANGO_BASE_URL=https://api.yourdomain.com
@@ -677,6 +722,7 @@ VITE_RAZORPAY_KEY_ID=your-razorpay-key
 ### Production Deployment
 
 **Backend Deployment:**
+
 1. Use ASGI server (daphne/uvicorn) for production
 2. Configure PostgreSQL database
 3. Set up Redis for caching and sessions
@@ -684,12 +730,14 @@ VITE_RAZORPAY_KEY_ID=your-razorpay-key
 5. SSL certificate installation
 
 **Frontend Deployment:**
+
 1. Build production bundle: `npm run build`
 2. Deploy to CDN or static hosting
 3. Configure proper caching headers
 4. Set up domain and SSL
 
 **Database Migration:**
+
 ```bash
 python manage.py makemigrations
 python manage.py migrate
@@ -704,26 +752,31 @@ python manage.py createsuperuser
 ### Common Issues
 
 **Authentication Issues:**
+
 - Check JWT token expiration
 - Verify CORS configuration
 - Confirm API endpoint URLs
 
-**Chat System Issues:**  
+**Chat System Issues:**
+
 - Verify Socket.IO connection
 - Check WebSocket support
 - Confirm real-time server status
 
 **Payment Issues:**
+
 - Validate Razorpay configuration
 - Check webhook endpoints
 - Verify signature calculation
 
 **Database Issues:**
+
 - Check connection string
 - Verify migrations are applied
 - Check for missing foreign keys
 
 **Frontend Issues:**
+
 - Check environment variables
 - Verify API base URLs
 - Check browser console for errors
@@ -731,12 +784,14 @@ python manage.py createsuperuser
 ### Performance Optimization
 
 **Backend:**
+
 - Use database query optimization
 - Implement caching strategies
 - Optimize API response sizes
 - Use background tasks for heavy operations
 
 **Frontend:**
+
 - Implement lazy loading
 - Optimize bundle size
 - Use React.memo for component optimization
@@ -745,6 +800,7 @@ python manage.py createsuperuser
 ### Monitoring and Logging
 
 **Backend Logging:**
+
 ```python
 import logging
 logger = logging.getLogger(__name__)
@@ -755,11 +811,12 @@ logger.error(f"Payment failed: {error}")
 ```
 
 **Frontend Error Tracking:**
+
 ```typescript
 // Error boundary for React components
 class ErrorBoundary extends Component {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught:', error, errorInfo);
+    console.error("Error caught:", error, errorInfo);
     // Send to error tracking service
   }
 }
@@ -772,7 +829,7 @@ class ErrorBoundary extends Component {
 This documentation consolidates the following implementation phases:
 
 1. **Authentication Integration** - User auth and role management
-2. **Backend Update Summary** - Django API implementation  
+2. **Backend Update Summary** - Django API implementation
 3. **Dashboard Implementation** - User dashboard features
 4. **Chat System Implementation** - Real-time messaging
 5. **Payment System Integration** - Razorpay payment processing

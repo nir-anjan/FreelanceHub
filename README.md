@@ -5,6 +5,7 @@ A comprehensive full-stack web application that connects freelancers with client
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Python 3.8+
 - Node.js 16+
 - PostgreSQL 12+
@@ -12,25 +13,27 @@ A comprehensive full-stack web application that connects freelancers with client
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/nir-anjan/FreelanceMarketplace.git
    cd FreelanceMarketplace
    ```
 
 2. **Backend Setup**
+
    ```bash
    # Create virtual environment
    python -m venv env
-   
+
    # Activate virtual environment
    # Windows:
    env\Scripts\activate
    # macOS/Linux:
    source env/bin/activate
-   
+
    # Install dependencies
    pip install -r backend/requirements.txt
-   
+
    # Setup database
    cd backend
    python manage.py migrate
@@ -38,16 +41,18 @@ A comprehensive full-stack web application that connects freelancers with client
    ```
 
 3. **Frontend Setup**
+
    ```bash
    cd frontend
    npm install
    ```
 
 4. **Environment Configuration**
-   
+
    Create `.env` files:
-   
+
    **Backend** (`backend/.env`):
+
    ```env
    DEBUG=True
    SECRET_KEY=your-secret-key-here
@@ -55,8 +60,9 @@ A comprehensive full-stack web application that connects freelancers with client
    RAZORPAY_KEY_ID=your-razorpay-key
    RAZORPAY_KEY_SECRET=your-razorpay-secret
    ```
-   
+
    **Frontend** (`frontend/.env`):
+
    ```env
    VITE_API_BASE_URL=http://localhost:8007/api
    VITE_DJANGO_BASE_URL=http://localhost:8007
@@ -66,12 +72,14 @@ A comprehensive full-stack web application that connects freelancers with client
 ### Running the Application
 
 1. **Start Backend Server**
+
    ```bash
    cd backend
    python manage.py runserver 0.0.0.0:8007
    ```
 
 2. **Start Frontend Server**
+
    ```bash
    cd frontend
    npm run dev
@@ -100,6 +108,7 @@ A comprehensive full-stack web application that connects freelancers with client
 ## 🛠️ Tech Stack
 
 **Frontend:**
+
 - React 18 + TypeScript
 - Tailwind CSS + shadcn/ui
 - Vite (Build Tool)
@@ -107,6 +116,7 @@ A comprehensive full-stack web application that connects freelancers with client
 - Axios
 
 **Backend:**
+
 - Django 5.2.7 + Django REST Framework
 - Socket.IO Server
 - JWT Authentication
@@ -116,6 +126,7 @@ A comprehensive full-stack web application that connects freelancers with client
 ## 📋 Features
 
 ### Core Features
+
 - 🔐 **Authentication** - Role-based user system (Client/Freelancer/Admin)
 - 💼 **Job Management** - Post, browse, and manage job listings
 - 👥 **User Profiles** - Comprehensive freelancer and client profiles
@@ -124,6 +135,7 @@ A comprehensive full-stack web application that connects freelancers with client
 - 🔍 **Search & Discovery** - Advanced job and freelancer search
 
 ### Admin Features
+
 - 📊 **Analytics Dashboard** - Revenue and user growth analytics
 - 👨‍💼 **User Management** - Comprehensive user oversight
 - 📝 **Job Moderation** - Job approval and content review
@@ -131,6 +143,7 @@ A comprehensive full-stack web application that connects freelancers with client
 - ⚖️ **Dispute Resolution** - Built-in conflict resolution system
 
 ### Advanced Features
+
 - 🌐 **Public Listings** - SEO-optimized job and freelancer pages
 - 📱 **Responsive Design** - Mobile-first responsive interface
 - 🔄 **Real-time Updates** - Live notifications and status updates
@@ -188,20 +201,24 @@ For detailed testing information, see [`testing/README.md`](testing/README.md).
 ### API Endpoints
 
 **Authentication:**
+
 - `POST /api/auth/register/` - User registration
 - `POST /api/auth/login/` - User login
 - `POST /api/auth/admin/login/` - Admin login
 
 **Jobs:**
+
 - `GET /api/auth/jobs/` - List jobs
 - `POST /api/auth/jobs/create/` - Create job
 - `GET /api/auth/jobs/{id}/` - Job details
 
 **Chat:**
+
 - `GET /api/auth/inbox/` - Chat threads
 - `GET /api/auth/inbox/{id}/messages/` - Messages
 
 **Admin:**
+
 - `GET /api/auth/admin/overview/` - Dashboard stats
 - `GET /api/auth/admin/users/` - User management
 - `GET /api/auth/admin/transactions/` - Transactions
@@ -209,12 +226,14 @@ For detailed testing information, see [`testing/README.md`](testing/README.md).
 ### Default Credentials
 
 **Admin User:**
+
 - Username: `admin`
 - Password: `admin123`
 
 ### Database Schema
 
 Key models include:
+
 - **User** - Authentication and roles
 - **Client/Freelancer** - Profile extensions
 - **Job** - Job listings and management
@@ -233,17 +252,19 @@ Key models include:
 ### Production Setup
 
 1. **Environment Configuration**
+
    ```bash
    # Backend production settings
    DEBUG=False
    ALLOWED_HOSTS=yourdomain.com
    DATABASE_URL=postgresql://prod-user:pass@prod-db:5432/prod-db
-   
+
    # Frontend production build
    npm run build
    ```
 
 2. **Server Configuration**
+
    - Use ASGI server (daphne/uvicorn)
    - Configure reverse proxy (Nginx)
    - Set up SSL certificates
@@ -276,6 +297,7 @@ Key models include:
 ## 📞 Support
 
 For support and questions:
+
 - Create an issue in the repository
 - Check the [comprehensive documentation](COMPREHENSIVE_DOCUMENTATION.md)
 - Review the [testing guide](testing/README.md)
@@ -288,4 +310,4 @@ This project is proprietary software. All rights reserved.
 
 **Built with ❤️ by the FreelanceMarketplace Team**
 
-*Last Updated: October 15, 2025*
+_Last Updated: October 15, 2025_
