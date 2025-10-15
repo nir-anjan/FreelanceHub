@@ -8,7 +8,8 @@ from django.db import transaction
 from django.conf import settings
 import logging
 
-from api.auth.models import Payment, Job, Client, Freelancer
+from api.auth.models import Job, Client, Freelancer
+from .models import Payment
 from api.common.responses import StandardResponseMixin
 from .serializers import (
     PaymentCreateSerializer, PaymentVerifySerializer, 

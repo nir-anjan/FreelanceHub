@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import ChatThread, ChatMessage, MessageRead
-from api.auth.models import Client, Freelancer
+from api.auth.models import Client, Freelancer, Job
 
 User = get_user_model()
 
@@ -29,6 +29,14 @@ class FreelancerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Freelancer
         fields = ['id', 'user', 'title', 'rate']
+
+
+class JobSerializer(serializers.ModelSerializer):
+    """Basic job serializer for chat context"""
+    
+    class Meta:
+        model = Job
+        fields = ['id', 'title', 'budget_min', 'budget_max']
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -70,6 +78,7 @@ class ChatThreadSerializer(serializers.ModelSerializer):
     """Serializer for chat threads"""
     client = ClientSerializer(read_only=True)
     freelancer = FreelancerSerializer(read_only=True)
+    job = JobSerializer(read_only=True)
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     participant_info = serializers.SerializerMethodField()

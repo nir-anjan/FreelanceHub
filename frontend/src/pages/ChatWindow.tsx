@@ -469,21 +469,12 @@ const ChatWindow: React.FC = () => {
         amount: Number(amount), // Ensure it's a number
       };
 
-      // Enhanced debugging
-      console.log("=== PAYMENT DEBUG INFO ===");
-      console.log("Payment data being sent:", paymentData);
-      console.log("Thread data:", {
-        job: thread.job,
-        freelancer: thread.freelancer,
+      // Debug payment data
+      console.log("Payment data:", {
         jobId: thread.job.id,
         freelancerId: thread.freelancer.id,
+        amount: amount,
       });
-      console.log("Data types:", {
-        jobIdType: typeof paymentData.job_id,
-        freelancerIdType: typeof paymentData.freelancer_id,
-        amountType: typeof paymentData.amount,
-      });
-      console.log("========================");
 
       // Initiate Razorpay payment with callbacks
       const success = await initiatePayment(paymentData, {
@@ -930,26 +921,6 @@ const ChatWindow: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Debug Info - Remove in production */}
-                    {process.env.NODE_ENV === "development" && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs">
-                        <div className="font-medium text-yellow-800 mb-1">
-                          Debug Info:
-                        </div>
-                        <div className="text-yellow-700 space-y-1">
-                          <div>Job Available: {thread?.job ? "✅" : "❌"}</div>
-                          <div>Job ID: {thread?.job?.id || "N/A"}</div>
-                          <div>
-                            Freelancer Available:{" "}
-                            {thread?.freelancer ? "✅" : "❌"}
-                          </div>
-                          <div>
-                            Freelancer ID: {thread?.freelancer?.id || "N/A"}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="payment-amount">Amount (₹)</Label>
@@ -1029,21 +1000,7 @@ const ChatWindow: React.FC = () => {
                         disabled={
                           !paymentAmount.trim() ||
                           isPaymentLoading ||
-                          !thread?.job?.id ||
-                          !thread?.freelancer?.id ||
                           isNaN(parseFloat(paymentAmount))
-                        }
-                        className="min-w-[120px]"
-                        title={
-                          !thread?.job?.id
-                            ? "Job information missing"
-                            : !thread?.freelancer?.id
-                            ? "Freelancer information missing"
-                            : !paymentAmount.trim()
-                            ? "Please enter an amount"
-                            : isNaN(parseFloat(paymentAmount))
-                            ? "Please enter a valid amount"
-                            : "Click to initiate payment"
                         }
                       >
                         {isPaymentLoading ? (

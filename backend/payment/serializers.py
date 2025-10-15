@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from api.auth.models import Payment, Job, Client, Freelancer
+from api.auth.models import Job, Client, Freelancer
+from .models import Payment
 from django.contrib.auth import get_user_model
 
 User = get_user_model()

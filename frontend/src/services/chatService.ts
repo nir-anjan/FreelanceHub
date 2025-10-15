@@ -26,9 +26,11 @@ export interface ChatThreadEnhanced {
     title?: string;
     rate?: number;
   };
-  job?: {
+  job: {
     id: number;
     title: string;
+    budget_min?: number;
+    budget_max?: number;
   };
   created_at: string;
   last_message_at: string;

@@ -8,7 +8,8 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 
-from .models import User, Freelancer, Client, ChatThread, ChatMessage, Job, Payment
+from .models import User, Freelancer, Client, ChatThread, ChatMessage, Job
+from payment.models import Payment
 from django.db import models
 from .serializers import (
     UserRegistrationSerializer,
