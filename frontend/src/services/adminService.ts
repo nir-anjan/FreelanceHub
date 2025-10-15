@@ -43,6 +43,25 @@ export interface AdminOverviewResponse {
   };
 }
 
+export interface RevenueData {
+  month: string;
+  revenue: number;
+}
+
+export interface UserGrowthData {
+  month: string;
+  users: number;
+}
+
+export interface AdminAnalyticsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    revenue_data: RevenueData[];
+    user_growth_data: UserGrowthData[];
+  };
+}
+
 export interface PendingJob {
   id: number;
   title: string;
@@ -228,6 +247,12 @@ export const adminService = {
   // Admin overview
   async getOverview(): Promise<AdminOverviewResponse> {
     const response = await api.get("/auth/admin/overview/");
+    return response.data;
+  },
+
+  // Admin analytics
+  async getAnalytics(): Promise<AdminAnalyticsResponse> {
+    const response = await api.get("/auth/admin/analytics/");
     return response.data;
   },
 

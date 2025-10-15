@@ -1936,3 +1936,102 @@ class FreelancerDetailAPIView(APIView, StandardResponseMixin):
                 message=f"Error retrieving freelancer details: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class AdminAnalyticsAPIView(APIView, StandardResponseMixin):
+    """
+    Admin analytics - historical data for charts
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """
+        Get historical analytics data for dashboard charts
+        """
+        try:
+            from datetime import datetime, timedelta
+            from django.db.models import Count, Sum
+            from django.db.models.functions import TruncMonth
+            from payment.models import Payment
+            
+            # Get the last 6 months
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=180)  # Approximately 6 months
+            
+            # Monthly revenue data
+            revenue_data = Payment.objects.filter(
+                created_at__gte=start_date,
+                status='completed'
+            ).annotate(
+                month=TruncMonth('created_at')
+            ).values('month').annotate(
+                revenue=Sum('amount')
+            ).order_by('month')
+            
+            # Format revenue data for frontend
+            revenue_formatted = []
+            for item in revenue_data:
+                month_name = item['month'].strftime('%b')
+                revenue_formatted.append({
+                    'month': month_name,
+                    'revenue': float(item['revenue']) if item['revenue'] else 0
+                })
+            
+            # User growth data (monthly registrations)
+            user_growth_data = User.objects.filter(
+                date_joined__gte=start_date
+            ).annotate(
+                month=TruncMonth('date_joined')
+            ).values('month').annotate(
+                users=Count('id')
+            ).order_by('month')
+            
+            # Format user growth data for frontend
+            users_formatted = []
+            cumulative_users = 0
+            for item in user_growth_data:
+                month_name = item['month'].strftime('%b')
+                cumulative_users += item['users']
+                users_formatted.append({
+                    'month': month_name,
+                    'users': cumulative_users
+                })
+            
+            # If we have less than 6 months of data, fill with zeros
+            months_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            current_month_index = end_date.month - 1
+            
+            # Get last 6 months in order
+            last_6_months = []
+            for i in range(6):
+                month_index = (current_month_index - (5 - i)) % 12
+                last_6_months.append(months_order[month_index])
+            
+            # Ensure we have data for all 6 months (fill missing with previous values or zeros)
+            complete_revenue = []
+            complete_users = []
+            
+            for month in last_6_months:
+                # Find revenue for this month
+                revenue_found = next((item for item in revenue_formatted if item['month'] == month), None)
+                revenue_value = revenue_found['revenue'] if revenue_found else 0
+                complete_revenue.append({'month': month, 'revenue': revenue_value})
+                
+                # Find users for this month
+                users_found = next((item for item in users_formatted if item['month'] == month), None)
+                users_value = users_found['users'] if users_found else (complete_users[-1]['users'] if complete_users else 0)
+                complete_users.append({'month': month, 'users': users_value})
+            
+            return self.success_response(
+                message="Analytics data retrieved successfully",
+                data={
+                    'revenue_data': complete_revenue,
+                    'user_growth_data': complete_users
+                }
+            )
+            
+        except Exception as e:
+            return self.error_response(
+                message=f"Error retrieving analytics data: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

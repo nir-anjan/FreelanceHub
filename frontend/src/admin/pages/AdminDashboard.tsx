@@ -43,27 +43,15 @@ export const AdminDashboard = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [revenueData, setRevenueData] = useState<
+    { month: string; revenue: number }[]
+  >([]);
+  const [userGrowthData, setUserGrowthData] = useState<
+    { month: string; users: number }[]
+  >([]);
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Mock data for charts (keeping for now until we have more historical data)
-  const revenueData = [
-    { month: "Jan", revenue: 12000 },
-    { month: "Feb", revenue: 15000 },
-    { month: "Mar", revenue: 18000 },
-    { month: "Apr", revenue: 22000 },
-    { month: "May", revenue: 25000 },
-    { month: "Jun", revenue: 28000 },
-  ];
-
-  const userGrowthData = [
-    { month: "Jan", users: 120 },
-    { month: "Feb", users: 180 },
-    { month: "Mar", users: 250 },
-    { month: "Apr", users: 320 },
-    { month: "May", users: 410 },
-    { month: "Jun", users: 520 },
-  ];
 
   // Load admin overview data
   useEffect(() => {
@@ -96,6 +84,64 @@ export const AdminDashboard = () => {
     };
 
     loadOverviewData();
+  }, []);
+
+  // Load analytics data
+  useEffect(() => {
+    const loadAnalyticsData = async () => {
+      try {
+        setAnalyticsLoading(true);
+
+        const response = await adminService.getAnalytics();
+
+        if (response.success) {
+          setRevenueData(response.data.revenue_data);
+          setUserGrowthData(response.data.user_growth_data);
+        } else {
+          console.error("Failed to load analytics data");
+          // Use fallback mock data if analytics fails
+          setRevenueData([
+            { month: "Jan", revenue: 0 },
+            { month: "Feb", revenue: 0 },
+            { month: "Mar", revenue: 0 },
+            { month: "Apr", revenue: 0 },
+            { month: "May", revenue: 0 },
+            { month: "Jun", revenue: 0 },
+          ]);
+          setUserGrowthData([
+            { month: "Jan", users: 0 },
+            { month: "Feb", users: 0 },
+            { month: "Mar", users: 0 },
+            { month: "Apr", users: 0 },
+            { month: "May", users: 0 },
+            { month: "Jun", users: 0 },
+          ]);
+        }
+      } catch (err: any) {
+        console.error("Error loading analytics data:", err);
+        // Use fallback mock data if analytics fails
+        setRevenueData([
+          { month: "Jan", revenue: 0 },
+          { month: "Feb", revenue: 0 },
+          { month: "Mar", revenue: 0 },
+          { month: "Apr", revenue: 0 },
+          { month: "May", revenue: 0 },
+          { month: "Jun", revenue: 0 },
+        ]);
+        setUserGrowthData([
+          { month: "Jan", users: 0 },
+          { month: "Feb", users: 0 },
+          { month: "Mar", users: 0 },
+          { month: "Apr", users: 0 },
+          { month: "May", users: 0 },
+          { month: "Jun", users: 0 },
+        ]);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    loadAnalyticsData();
   }, []);
 
   // Generate job completion data from stats
@@ -228,25 +274,41 @@ export const AdminDashboard = () => {
                 Monthly Revenue
               </CardTitle>
               <CardDescription>
-                Revenue growth over the past 6 months
+                Revenue growth over the past 6 months (from database)
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`$${value}`, "Revenue"]} />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    dot={{ fill: "#3b82f6" }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Loading revenue data...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value) => [
+                        `₹${Number(value).toLocaleString()}`,
+                        "Revenue",
+                      ]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      dot={{ fill: "#3b82f6" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -258,25 +320,38 @@ export const AdminDashboard = () => {
                 User Growth
               </CardTitle>
               <CardDescription>
-                New user registrations over time
+                Cumulative user registrations over time (from database)
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userGrowthData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value}`, "New Users"]} />
-                  <Area
-                    type="monotone"
-                    dataKey="users"
-                    stroke="#10b981"
-                    fill="#10b981"
-                    fillOpacity={0.3}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Loading user growth data...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={userGrowthData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value) => [`${value}`, "Total Users"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="users"
+                      stroke="#10b981"
+                      fill="#10b981"
+                      fillOpacity={0.3}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>

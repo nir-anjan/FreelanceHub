@@ -34,6 +34,7 @@ from .views import (
     AdminDisputeResolveAPIView,
     AdminDisputeDismissAPIView,
     AdminPaymentsAPIView,
+    AdminAnalyticsAPIView,
 )
 
 app_name = 'auth'
@@ -91,4 +92,5 @@ urlpatterns = [
     path('admin/disputes/<int:dispute_id>/resolve/', AdminDisputeResolveAPIView.as_view(), name='admin_dispute_resolve'),
     path('admin/disputes/<int:dispute_id>/dismiss/', AdminDisputeDismissAPIView.as_view(), name='admin_dispute_dismiss'),
     path('admin/payments/', AdminPaymentsAPIView.as_view(), name='admin_payments'),
+    path('admin/analytics/', AdminAnalyticsAPIView.as_view(), name='admin_analytics'),
 ]

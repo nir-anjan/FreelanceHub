@@ -96,7 +96,7 @@ export class ChatWebSocketClient {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.hostname;
       const port =
-        process.env.NODE_ENV === "development" ? "8000" : window.location.port;
+        process.env.NODE_ENV === "development" ? "8006" : window.location.port;
       const wsUrl = `${protocol}//${host}:${port}/ws/chat/${this.threadId}/?token=${this.token}`;
 
       try {
