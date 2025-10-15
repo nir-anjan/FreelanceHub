@@ -267,7 +267,7 @@ export const AdminUsers = () => {
                                 <div className="flex items-center space-x-2 text-sm">
                                   <DollarSign className="h-3 w-3" />
                                   <span>
-                                    ${user.freelancer_data.rate || "N/A"}/hr
+                                    ₹{user.freelancer_data.rate || "N/A"}/hr
                                   </span>
                                 </div>
                                 <div className="flex items-center space-x-2 text-sm">
@@ -467,7 +467,7 @@ export const AdminUsers = () => {
                           </label>
                           <p className="text-sm">
                             {selectedUser.freelancer_data.rate
-                              ? `$${selectedUser.freelancer_data.rate}/hr`
+                              ? `₹₹{selectedUser.freelancer_data.rate}/hr`
                               : "Not set"}
                           </p>
                         </div>
