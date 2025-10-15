@@ -353,14 +353,15 @@ const Profile = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-5xl mx-auto space-y-8">
             {/* Header */}
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold">My Profile</h1>
-              <p className="text-muted-foreground">
-                Manage your account information and preferences
+            <div className="text-center space-y-4">
+              <h1 className="text-4xl font-bold text-gray-900">My Profile</h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Manage your account information, professional details, and
+                preferences to enhance your freelance marketplace experience
               </p>
             </div>
 
@@ -382,130 +383,179 @@ const Profile = () => {
             )}
 
             {/* Main Profile Card */}
-            <Card className="shadow-card-hover">
-              <CardHeader className="text-center pb-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1" />
-                  <div className="flex flex-col items-center space-y-4">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage
-                        src={user.profile_picture}
-                        alt={`${user.first_name} ${user.last_name}`}
-                      />
-                      <AvatarFallback className="text-lg">
-                        {getUserInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-center">
-                      <CardTitle className="text-2xl">
-                        {user.first_name} {user.last_name}
-                      </CardTitle>
-                      <CardDescription className="flex items-center justify-center gap-2 mt-2">
-                        <Badge variant="secondary" className="capitalize">
-                          {user.role}
-                        </Badge>
-                        <span className="text-sm">@{user.username}</span>
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {!isEditing ? (
+            <Card className="shadow-lg border-0">
+              <CardHeader className="relative pb-6">
+                {/* Edit Button - Top Right */}
+                <div className="absolute top-4 right-4 z-10">
+                  {!isEditing ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditing(true)}
+                      className="shadow-sm"
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSaveProfile}
+                        disabled={isLoading}
+                        className="shadow-sm"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsEditing(true)}
+                        onClick={handleCancel}
+                        className="shadow-sm"
                       >
-                        <Edit3 className="h-4 w-4 mr-2" />
-                        Edit
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
                       </Button>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={handleSaveProfile}
-                          disabled={isLoading}
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          Save
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCancel}
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Profile Header - Centered */}
+                <div className="flex flex-col items-center text-center space-y-4 pt-4">
+                  <Avatar className="h-32 w-32 shadow-lg ring-4 ring-background">
+                    <AvatarImage
+                      src={user.profile_picture}
+                      alt={`${user.first_name} ${user.last_name}`}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="text-2xl font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                      {getUserInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="space-y-2">
+                    <CardTitle className="text-3xl font-bold text-gray-900">
+                      {user.first_name} {user.last_name}
+                    </CardTitle>
+                    <CardDescription className="flex items-center justify-center gap-3 text-base">
+                      <Badge
+                        variant="secondary"
+                        className="capitalize px-3 py-1"
+                      >
+                        {user.role}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        @{user.username}
+                      </span>
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-8 px-6 pb-6">
                 {/* Basic Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Basic Information
-                  </h3>
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <User className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Basic Information
+                    </h3>
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="first_name">First Name</Label>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="first_name"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        First Name *
+                      </Label>
                       {isEditing ? (
                         <Input
                           id="first_name"
                           name="first_name"
                           value={userFormData.first_name}
                           onChange={handleUserFormChange}
-                          className={errors.first_name ? "border-red-500" : ""}
+                          className={`transition-all ${
+                            errors.first_name
+                              ? "border-red-500 focus:border-red-500"
+                              : "focus:border-blue-500"
+                          }`}
+                          placeholder="Enter your first name"
                         />
                       ) : (
-                        <p className="mt-2 text-sm">{user.first_name}</p>
+                        <div className="p-3 bg-gray-50 rounded-lg border">
+                          <p className="text-sm font-medium">
+                            {user.first_name}
+                          </p>
+                        </div>
                       )}
                       {errors.first_name && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
                           {errors.first_name}
                         </p>
                       )}
                     </div>
 
-                    <div>
-                      <Label htmlFor="last_name">Last Name</Label>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="last_name"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Last Name *
+                      </Label>
                       {isEditing ? (
                         <Input
                           id="last_name"
                           name="last_name"
                           value={userFormData.last_name}
                           onChange={handleUserFormChange}
-                          className={errors.last_name ? "border-red-500" : ""}
+                          className={`transition-all ${
+                            errors.last_name
+                              ? "border-red-500 focus:border-red-500"
+                              : "focus:border-blue-500"
+                          }`}
+                          placeholder="Enter your last name"
                         />
                       ) : (
-                        <p className="mt-2 text-sm">{user.last_name}</p>
+                        <div className="p-3 bg-gray-50 rounded-lg border">
+                          <p className="text-sm font-medium">
+                            {user.last_name}
+                          </p>
+                        </div>
                       )}
                       {errors.last_name && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
                           {errors.last_name}
                         </p>
                       )}
                     </div>
 
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Email
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        Email Address
                       </Label>
-                      <p className="mt-2 text-sm">{user.email}</p>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-sm font-medium">{user.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Email cannot be changed
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
+                    <div className="space-y-2">
                       <Label
                         htmlFor="phone"
-                        className="flex items-center gap-2"
+                        className="text-sm font-medium text-gray-700 flex items-center gap-2"
                       >
-                        <Phone className="h-4 w-4" />
-                        Phone
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        Phone Number
                       </Label>
                       {isEditing ? (
                         <Input
@@ -514,23 +564,35 @@ const Profile = () => {
                           value={userFormData.phone}
                           onChange={handleUserFormChange}
                           placeholder="Enter your phone number"
-                          className={errors.phone ? "border-red-500" : ""}
+                          className={`transition-all ${
+                            errors.phone
+                              ? "border-red-500 focus:border-red-500"
+                              : "focus:border-blue-500"
+                          }`}
                         />
                       ) : (
-                        <p className="mt-2 text-sm">
-                          {user.phone || "Not provided"}
-                        </p>
+                        <div className="p-3 bg-gray-50 rounded-lg border">
+                          <p className="text-sm font-medium">
+                            {user.phone || "Not provided"}
+                          </p>
+                        </div>
                       )}
                       {errors.phone && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
                           {errors.phone}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <Label htmlFor="bio">Bio</Label>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="bio"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Bio
+                    </Label>
                     {isEditing ? (
                       <Textarea
                         id="bio"
@@ -538,51 +600,66 @@ const Profile = () => {
                         value={userFormData.bio}
                         onChange={handleUserFormChange}
                         placeholder="Tell us about yourself..."
-                        rows={3}
+                        rows={4}
+                        className="transition-all focus:border-blue-500 resize-none"
                       />
                     ) : (
-                      <p className="mt-2 text-sm">
-                        {user.bio || "No bio provided"}
-                      </p>
+                      <div className="p-4 bg-gray-50 rounded-lg border min-h-[100px]">
+                        <p className="text-sm leading-relaxed">
+                          {user.bio || "No bio provided"}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="my-8" />
 
                 {/* Role-specific Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    {user.role === "freelancer" ? (
-                      <Briefcase className="h-5 w-5" />
-                    ) : (
-                      <Building className="h-5 w-5" />
-                    )}
-                    {user.role === "freelancer"
-                      ? "Professional Details"
-                      : "Company Details"}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                    <div className="p-2 bg-purple-50 rounded-lg">
+                      {user.role === "freelancer" ? (
+                        <Briefcase className="h-5 w-5 text-purple-600" />
+                      ) : (
+                        <Building className="h-5 w-5 text-purple-600" />
+                      )}
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {user.role === "freelancer"
+                        ? "Professional Details"
+                        : "Company Details"}
+                    </h3>
                     {profileLoading && (
-                      <span className="text-sm text-muted-foreground ml-2">
-                        Loading...
-                      </span>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <span className="text-sm text-gray-500">
+                          Loading...
+                        </span>
+                      </div>
                     )}
-                  </h3>
+                  </div>
 
                   {user.role === "freelancer" && (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {!hasRoleProfile && isEditing && (
                         <Alert className="border-blue-200 bg-blue-50">
                           <AlertCircle className="h-4 w-4 text-blue-600" />
                           <AlertDescription className="text-blue-800">
                             Complete your freelancer profile to start receiving
-                            job opportunities.
+                            job opportunities and showcase your expertise.
                           </AlertDescription>
                         </Alert>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="title">Professional Title</Label>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="title"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Professional Title *
+                          </Label>
                           {isEditing ? (
                             <Input
                               id="title"
@@ -590,22 +667,35 @@ const Profile = () => {
                               value={freelancerFormData.title}
                               onChange={handleFreelancerFormChange}
                               placeholder="e.g., Full-stack Developer"
-                              className={errors.title ? "border-red-500" : ""}
+                              className={`transition-all ${
+                                errors.title
+                                  ? "border-red-500 focus:border-red-500"
+                                  : "focus:border-blue-500"
+                              }`}
                             />
                           ) : (
-                            <p className="mt-2 text-sm">
-                              {roleProfile?.title || "Not provided"}
-                            </p>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                              <p className="text-sm font-medium">
+                                {(roleProfile as FreelancerProfile)?.title ||
+                                  "Not provided"}
+                              </p>
+                            </div>
                           )}
                           {errors.title && (
-                            <p className="text-red-500 text-sm mt-1">
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
                               {errors.title}
                             </p>
                           )}
                         </div>
 
-                        <div>
-                          <Label htmlFor="category">Category</Label>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="category"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Category *
+                          </Label>
                           {isEditing ? (
                             <Select
                               value={freelancerFormData.category}
@@ -623,9 +713,11 @@ const Profile = () => {
                               }}
                             >
                               <SelectTrigger
-                                className={
-                                  errors.category ? "border-red-500" : ""
-                                }
+                                className={`transition-all ${
+                                  errors.category
+                                    ? "border-red-500 focus:border-red-500"
+                                    : "focus:border-blue-500"
+                                }`}
                               >
                                 <SelectValue placeholder="Select a category" />
                               </SelectTrigger>
@@ -638,24 +730,28 @@ const Profile = () => {
                               </SelectContent>
                             </Select>
                           ) : (
-                            <p className="mt-2 text-sm">
-                              {roleProfile?.category || "Not provided"}
-                            </p>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                              <p className="text-sm font-medium">
+                                {(roleProfile as FreelancerProfile)?.category ||
+                                  "Not provided"}
+                              </p>
+                            </div>
                           )}
                           {errors.category && (
-                            <p className="text-red-500 text-sm mt-1">
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
                               {errors.category}
                             </p>
                           )}
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label
                             htmlFor="rate"
-                            className="flex items-center gap-2"
+                            className="text-sm font-medium text-gray-700 flex items-center gap-2"
                           >
-                            <DollarSign className="h-4 w-4" />
-                            Hourly Rate (USD)
+                            <DollarSign className="h-4 w-4 text-gray-500" />
+                            Hourly Rate (₹)
                           </Label>
                           {isEditing ? (
                             <Input
@@ -663,29 +759,38 @@ const Profile = () => {
                               name="rate"
                               value={freelancerFormData.rate}
                               onChange={handleFreelancerFormChange}
-                              placeholder="e.g., 25.00"
-                              className={errors.rate ? "border-red-500" : ""}
+                              placeholder="e.g., 2500.00"
+                              className={`transition-all ${
+                                errors.rate
+                                  ? "border-red-500 focus:border-red-500"
+                                  : "focus:border-blue-500"
+                              }`}
                             />
                           ) : (
-                            <p className="mt-2 text-sm">
-                              {roleProfile?.rate
-                                ? `$${roleProfile.rate}/hour`
-                                : "Not provided"}
-                            </p>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                              <p className="text-sm font-medium">
+                                {(roleProfile as FreelancerProfile)?.rate
+                                  ? `₹${
+                                      (roleProfile as FreelancerProfile).rate
+                                    }/hour`
+                                  : "Not provided"}
+                              </p>
+                            </div>
                           )}
                           {errors.rate && (
-                            <p className="text-red-500 text-sm mt-1">
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
                               {errors.rate}
                             </p>
                           )}
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label
                             htmlFor="location"
-                            className="flex items-center gap-2"
+                            className="text-sm font-medium text-gray-700 flex items-center gap-2"
                           >
-                            <MapPin className="h-4 w-4" />
+                            <MapPin className="h-4 w-4 text-gray-500" />
                             Location
                           </Label>
                           {isEditing ? (
@@ -694,41 +799,57 @@ const Profile = () => {
                               name="location"
                               value={freelancerFormData.location}
                               onChange={handleFreelancerFormChange}
-                              placeholder="e.g., New York, USA"
+                              placeholder="e.g., Mumbai, India"
+                              className="transition-all focus:border-blue-500"
                             />
                           ) : (
-                            <p className="mt-2 text-sm">
-                              {roleProfile?.location || "Not provided"}
-                            </p>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                              <p className="text-sm font-medium">
+                                {(roleProfile as FreelancerProfile)?.location ||
+                                  "Not provided"}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      <div>
-                        <Label htmlFor="skills">Skills</Label>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="skills"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Skills & Expertise
+                        </Label>
                         {isEditing ? (
                           <Textarea
                             id="skills"
                             name="skills"
                             value={freelancerFormData.skills}
                             onChange={handleFreelancerFormChange}
-                            placeholder="e.g., React, Node.js, Python, Django"
-                            rows={2}
+                            placeholder="e.g., React, Node.js, Python, Django, UI/UX Design"
+                            rows={3}
+                            className="transition-all focus:border-blue-500 resize-none"
                           />
                         ) : (
-                          <div className="mt-2">
-                            {roleProfile?.skills ? (
+                          <div className="p-4 bg-gray-50 rounded-lg border min-h-[80px]">
+                            {(roleProfile as FreelancerProfile)?.skills ? (
                               <div className="flex flex-wrap gap-2">
-                                {roleProfile.skills
+                                {(roleProfile as FreelancerProfile).skills
                                   .split(",")
                                   .map((skill, index) => (
-                                    <Badge key={index} variant="outline">
+                                    <Badge
+                                      key={index}
+                                      variant="outline"
+                                      className="px-3 py-1"
+                                    >
                                       {skill.trim()}
                                     </Badge>
                                   ))}
                               </div>
                             ) : (
-                              <p className="text-sm">No skills provided</p>
+                              <p className="text-sm text-gray-500">
+                                No skills provided
+                              </p>
                             )}
                           </div>
                         )}
@@ -737,23 +858,24 @@ const Profile = () => {
                   )}
 
                   {user.role === "client" && (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {!hasRoleProfile && isEditing && (
                         <Alert className="border-blue-200 bg-blue-50">
                           <AlertCircle className="h-4 w-4 text-blue-600" />
                           <AlertDescription className="text-blue-800">
-                            Complete your company profile to start posting jobs.
+                            Complete your company profile to start posting jobs
+                            and finding talented freelancers.
                           </AlertDescription>
                         </Alert>
                       )}
 
-                      <div>
+                      <div className="max-w-md space-y-2">
                         <Label
                           htmlFor="company_name"
-                          className="flex items-center gap-2"
+                          className="text-sm font-medium text-gray-700 flex items-center gap-2"
                         >
-                          <Building className="h-4 w-4" />
-                          Company Name
+                          <Building className="h-4 w-4 text-gray-500" />
+                          Company Name *
                         </Label>
                         {isEditing ? (
                           <Input
@@ -761,18 +883,24 @@ const Profile = () => {
                             name="company_name"
                             value={clientFormData.company_name}
                             onChange={handleClientFormChange}
-                            placeholder="e.g., Acme Corporation"
-                            className={
-                              errors.company_name ? "border-red-500" : ""
-                            }
+                            placeholder="e.g., Tech Solutions Pvt Ltd"
+                            className={`transition-all ${
+                              errors.company_name
+                                ? "border-red-500 focus:border-red-500"
+                                : "focus:border-blue-500"
+                            }`}
                           />
                         ) : (
-                          <p className="mt-2 text-sm">
-                            {roleProfile?.company_name || "Not provided"}
-                          </p>
+                          <div className="p-3 bg-gray-50 rounded-lg border">
+                            <p className="text-sm font-medium">
+                              {(roleProfile as ClientProfile)?.company_name ||
+                                "Not provided"}
+                            </p>
+                          </div>
                         )}
                         {errors.company_name && (
-                          <p className="text-red-500 text-sm mt-1">
+                          <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
                             {errors.company_name}
                           </p>
                         )}
@@ -782,18 +910,24 @@ const Profile = () => {
                 </div>
 
                 {/* Account Information */}
-                <Separator />
+                <Separator className="my-8" />
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Account Information
-                  </h3>
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                    <div className="p-2 bg-green-50 rounded-lg">
+                      <Calendar className="h-5 w-5 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Account Information
+                    </h3>
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <Label>Member Since</Label>
-                      <p className="mt-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Member Since
+                      </Label>
+                      <p className="text-sm font-semibold text-gray-900">
                         {new Date(user.date_joined).toLocaleDateString(
                           "en-US",
                           {
@@ -805,9 +939,11 @@ const Profile = () => {
                       </p>
                     </div>
 
-                    <div>
-                      <Label>Last Login</Label>
-                      <p className="mt-2">
+                    <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Last Login
+                      </Label>
+                      <p className="text-sm font-semibold text-gray-900">
                         {user.last_login
                           ? new Date(user.last_login).toLocaleDateString(
                               "en-US",
@@ -821,26 +957,42 @@ const Profile = () => {
                       </p>
                     </div>
 
-                    <div>
-                      <Label>Email Verified</Label>
-                      <div className="mt-2">
+                    <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Email Verification
+                      </Label>
+                      <div>
                         <Badge
                           variant={
                             user.email_verified ? "default" : "secondary"
                           }
+                          className={`${
+                            user.email_verified
+                              ? "bg-green-100 text-green-800 hover:bg-green-200"
+                              : "bg-orange-100 text-orange-800 hover:bg-orange-200"
+                          }`}
                         >
-                          {user.email_verified ? "Verified" : "Not Verified"}
+                          {user.email_verified
+                            ? "✓ Verified"
+                            : "⚠ Not Verified"}
                         </Badge>
                       </div>
                     </div>
 
-                    <div>
-                      <Label>Account Status</Label>
-                      <div className="mt-2">
+                    <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Account Status
+                      </Label>
+                      <div>
                         <Badge
                           variant={user.is_active ? "default" : "destructive"}
+                          className={`${
+                            user.is_active
+                              ? "bg-green-100 text-green-800 hover:bg-green-200"
+                              : "bg-red-100 text-red-800 hover:bg-red-200"
+                          }`}
                         >
-                          {user.is_active ? "Active" : "Inactive"}
+                          {user.is_active ? "✓ Active" : "✗ Inactive"}
                         </Badge>
                       </div>
                     </div>

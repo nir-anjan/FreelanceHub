@@ -80,14 +80,14 @@ const Dashboard: React.FC = () => {
       return [
         {
           title: "Post a New Job",
-          description: "Find the perfect freelancer for your project",
+          description: "Find a freelancer for your project",
           icon: Plus,
           href: "/dashboard/create-job",
           variant: "default" as const,
         },
         {
           title: "View My Jobs",
-          description: "Manage your posted jobs and applications",
+          description: "Manage your posted jobs",
           icon: Briefcase,
           href: "/dashboard/jobs",
           variant: "outline" as const,
@@ -317,14 +317,14 @@ const Dashboard: React.FC = () => {
                 <Button
                   key={action.href}
                   variant={action.variant}
-                  className="h-auto p-4 flex flex-col items-center justify-center space-y-2"
+                  className="h-auto p-4 flex flex-col items-center justify-center space-y-2 overflow-hidden"
                   asChild
                 >
                   <Link to={action.href}>
                     <Icon className="h-6 w-6" />
                     <div className="text-center">
                       <div className="font-medium">{action.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className="text-xs text-gray-500 mt-1">
                         {action.description}
                       </div>
                     </div>
