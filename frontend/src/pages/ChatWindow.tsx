@@ -11,6 +11,8 @@ import {
   ChatMessageEnhanced,
   ChatThreadEnhanced,
 } from "@/services/chatService";
+import { usePayment } from "@/hooks/usePayment";
+import { PaymentCreateRequest } from "@/types/payment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +74,14 @@ const ChatWindow: React.FC = () => {
   const [disputeDescription, setDisputeDescription] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDescription, setPaymentDescription] = useState("");
+
+  // Payment integration
+  const {
+    isLoading: isPaymentLoading,
+    error: paymentError,
+    initiatePayment,
+    clearError,
+  } = usePayment();
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -406,9 +416,22 @@ const ChatWindow: React.FC = () => {
     }
   };
 
-  // Payment handling
+  // Payment handling with Razorpay
   const handleInitiatePayment = async () => {
-    if (!threadIdNum || !paymentAmount.trim()) return;
+    if (
+      !threadIdNum ||
+      !paymentAmount.trim() ||
+      !thread?.job ||
+      !thread?.freelancer
+    ) {
+      toast({
+        title: "Missing Information",
+        description:
+          "Unable to process payment. Missing job or freelancer information.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -420,25 +443,101 @@ const ChatWindow: React.FC = () => {
       return;
     }
 
+    // Validate required data
+    if (!thread.job.id || !thread.freelancer.id) {
+      toast({
+        title: "Data Error",
+        description:
+          "Job ID or Freelancer ID is missing. Please refresh and try again.",
+        variant: "destructive",
+      });
+      console.error("Missing IDs:", {
+        jobId: thread.job.id,
+        freelancerId: thread.freelancer.id,
+      });
+      return;
+    }
+
+    // Clear any previous payment errors
+    clearError();
+
     try {
-      await chatService.initiatePayment(threadIdNum, {
-        amount,
-        description: paymentDescription.trim() || undefined,
+      // Create payment data for Razorpay with explicit validation
+      const paymentData: PaymentCreateRequest = {
+        job_id: Number(thread.job.id), // Ensure it's a number
+        freelancer_id: Number(thread.freelancer.id), // Ensure it's a number
+        amount: Number(amount), // Ensure it's a number
+      };
+
+      // Enhanced debugging
+      console.log("=== PAYMENT DEBUG INFO ===");
+      console.log("Payment data being sent:", paymentData);
+      console.log("Thread data:", {
+        job: thread.job,
+        freelancer: thread.freelancer,
+        jobId: thread.job.id,
+        freelancerId: thread.freelancer.id,
+      });
+      console.log("Data types:", {
+        jobIdType: typeof paymentData.job_id,
+        freelancerIdType: typeof paymentData.freelancer_id,
+        amountType: typeof paymentData.amount,
+      });
+      console.log("========================");
+
+      // Initiate Razorpay payment with callbacks
+      const success = await initiatePayment(paymentData, {
+        onSuccess: (verifiedPayment) => {
+          // Send success message to chat
+          if (chatSocketClient.isConnected()) {
+            const successMessage = `💳 Payment completed! ₹${amount.toLocaleString()} has been sent to ${
+              thread?.freelancer?.user.first_name || "freelancer"
+            } via Razorpay. Transaction ID: ${verifiedPayment.transaction_id}`;
+            chatSocketClient.sendMessage(threadIdNum, successMessage);
+          }
+
+          toast({
+            title: "Payment Successful!",
+            description: `₹${amount.toLocaleString()} has been paid successfully`,
+          });
+
+          // Reload chat data to refresh job status
+          loadChatData();
+        },
+        onError: (error) => {
+          // Send failure message to chat
+          if (chatSocketClient.isConnected()) {
+            const errorMessage = `❌ Payment failed: ${error}`;
+            chatSocketClient.sendMessage(threadIdNum, errorMessage);
+          }
+        },
       });
 
-      setShowPaymentDialog(false);
-      setPaymentAmount("");
-      setPaymentDescription("");
+      if (success) {
+        // Close dialog and reset form on successful payment initiation
+        setShowPaymentDialog(false);
+        setPaymentAmount("");
+        setPaymentDescription("");
 
-      toast({
-        title: "Payment Initiated",
-        description: `Payment of $${amount} has been initiated`,
-      });
+        // Send a system message to the chat about payment initiation
+        if (chatSocketClient.isConnected()) {
+          const paymentMessage = `🔄 Payment of ₹${amount.toLocaleString()} initiated via Razorpay${
+            paymentDescription.trim() ? ` - ${paymentDescription.trim()}` : ""
+          }. Opening Razorpay checkout...`;
+          chatSocketClient.sendMessage(threadIdNum, paymentMessage);
+        }
+
+        toast({
+          title: "Payment Initiated",
+          description: `Razorpay checkout opened for ₹${amount.toLocaleString()}`,
+        });
+      }
     } catch (error) {
-      console.error("Error initiating payment:", error);
+      console.error("Error initiating Razorpay payment:", error);
       toast({
-        title: "Error",
-        description: "Failed to initiate payment",
+        title: "Payment Error",
+        description:
+          error instanceof Error ? error.message : "Failed to initiate payment",
         variant: "destructive",
       });
     }
@@ -764,64 +863,205 @@ const ChatWindow: React.FC = () => {
                 </DialogContent>
               </Dialog>
 
-              <Dialog
-                open={showPaymentDialog}
-                onOpenChange={setShowPaymentDialog}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Initiate Payment</DialogTitle>
-                    <DialogDescription>
-                      Send a payment for this project.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="payment-amount">Amount ($)</Label>
-                      <Input
-                        id="payment-amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="payment-description">
-                        Description (Optional)
-                      </Label>
-                      <Input
-                        id="payment-description"
-                        value={paymentDescription}
-                        onChange={(e) => setPaymentDescription(e.target.value)}
-                        placeholder="Payment description"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowPaymentDialog(false)}
-                    >
-                      Cancel
+              {/* Payment Button - Only for Clients */}
+              {user?.role === "client" && (
+                <Dialog
+                  open={showPaymentDialog}
+                  onOpenChange={setShowPaymentDialog}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Payment
                     </Button>
-                    <Button
-                      onClick={handleInitiatePayment}
-                      disabled={!paymentAmount.trim()}
-                    >
-                      Send Payment
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Initiate Payment via Razorpay</DialogTitle>
+                      <DialogDescription>
+                        Send a secure payment for this project using Razorpay.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Job and Freelancer Info */}
+                    {thread?.job && thread?.freelancer && (
+                      <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Project:</span>
+                          <span className="text-sm">{thread.job.title}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            Project ID:
+                          </span>
+                          <span className="text-sm font-mono text-blue-600">
+                            #{thread.job.id}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            Freelancer:
+                          </span>
+                          <span className="text-sm">
+                            {thread.freelancer.user.first_name &&
+                            thread.freelancer.user.last_name
+                              ? `${thread.freelancer.user.first_name} ${thread.freelancer.user.last_name}`
+                              : thread.freelancer.user.username}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            Freelancer ID:
+                          </span>
+                          <span className="text-sm font-mono text-blue-600">
+                            #{thread.freelancer.id}
+                          </span>
+                        </div>
+                        {thread.job.budget_max && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              Project Budget:
+                            </span>
+                            <span className="text-sm">
+                              ₹{thread.job.budget_max.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Debug Info - Remove in production */}
+                    {process.env.NODE_ENV === "development" && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs">
+                        <div className="font-medium text-yellow-800 mb-1">
+                          Debug Info:
+                        </div>
+                        <div className="text-yellow-700 space-y-1">
+                          <div>Job Available: {thread?.job ? "✅" : "❌"}</div>
+                          <div>Job ID: {thread?.job?.id || "N/A"}</div>
+                          <div>
+                            Freelancer Available:{" "}
+                            {thread?.freelancer ? "✅" : "❌"}
+                          </div>
+                          <div>
+                            Freelancer ID: {thread?.freelancer?.id || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="payment-amount">Amount (₹)</Label>
+                        <Input
+                          id="payment-amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          placeholder="0.00"
+                          disabled={isPaymentLoading}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Enter the amount you want to pay to the freelancer
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment-description">
+                          Description (Optional)
+                        </Label>
+                        <Input
+                          id="payment-description"
+                          value={paymentDescription}
+                          onChange={(e) =>
+                            setPaymentDescription(e.target.value)
+                          }
+                          placeholder="Payment for project completion"
+                          disabled={isPaymentLoading}
+                        />
+                      </div>
+
+                      {/* Payment Error Display */}
+                      {paymentError && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                          <div className="flex items-center">
+                            <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
+                            <p className="text-sm text-red-700">
+                              {paymentError}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Payment Info */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <div className="flex items-center">
+                          <DollarSign className="h-4 w-4 text-blue-500 mr-2" />
+                          <div className="text-sm text-blue-700">
+                            <p className="font-medium">
+                              Secure Payment via Razorpay
+                            </p>
+                            <p className="text-xs mt-1">
+                              Your payment will be processed securely through
+                              Razorpay. This is a sandbox environment for
+                              testing.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowPaymentDialog(false);
+                          clearError();
+                        }}
+                        disabled={isPaymentLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleInitiatePayment}
+                        disabled={
+                          !paymentAmount.trim() ||
+                          isPaymentLoading ||
+                          !thread?.job?.id ||
+                          !thread?.freelancer?.id ||
+                          isNaN(parseFloat(paymentAmount))
+                        }
+                        className="min-w-[120px]"
+                        title={
+                          !thread?.job?.id
+                            ? "Job information missing"
+                            : !thread?.freelancer?.id
+                            ? "Freelancer information missing"
+                            : !paymentAmount.trim()
+                            ? "Please enter an amount"
+                            : isNaN(parseFloat(paymentAmount))
+                            ? "Please enter a valid amount"
+                            : "Click to initiate payment"
+                        }
+                      >
+                        {isPaymentLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Pay ₹{paymentAmount || "0"}
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </CardTitle>
         </CardHeader>

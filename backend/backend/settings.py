@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'api.auth.apps.AuthConfig',
     'chat',
     'disputes',
+    'payment',
 ]
 
 MIDDLEWARE = [
@@ -202,9 +203,13 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React default
+    "http://localhost:5173",  # Vite dev server
     "http://localhost:8080",  # Vite default
+    "http://localhost:8081",  # Vite fallback port
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
     "http://127.0.0.1:8080",
+    "http://127.0.0.1:8081",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -251,3 +256,14 @@ CHANNEL_LAYERS = {
 #         },
 #     },
 # }
+
+# Razorpay Configuration
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Razorpay Settings
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', 'rzp_test_your_key_id')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', 'your_secret_key')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', 'your_webhook_secret')
