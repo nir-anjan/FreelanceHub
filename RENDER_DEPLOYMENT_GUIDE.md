@@ -6,7 +6,7 @@ This guide will walk you through deploying your full-stack FreelanceMarketplace 
 
 - **Backend**: Django REST API with WebSocket support
 - **Frontend**: React + Vite application
-- **Database**: PostgreSQL
+- **Database**: Supabase (PostgreSQL)
 - **Cache/WebSocket**: Redis
 - **Payment**: Razorpay integration
 
@@ -14,7 +14,8 @@ This guide will walk you through deploying your full-stack FreelanceMarketplace 
 
 1. GitHub repository with your code
 2. Render.com account
-3. Razorpay account for payment processing
+3. Supabase account (free tier available)
+4. Razorpay account for payment processing
 
 ## Deployment Files Created
 
@@ -41,6 +42,8 @@ whitenoise>=6.5.0
 dj-database-url>=2.1.0
 python-decouple>=3.8
 psycopg2-binary>=2.9.7
+supabase>=2.7.4
+postgrest-py>=0.16.8
 ```
 
 #### Environment Configuration
@@ -99,12 +102,16 @@ If you prefer manual setup, create services in this order:
 ```bash
 SECRET_KEY=your-generated-secret-key-50-chars-minimum
 DEBUG=False
-DATABASE_URL=postgresql://user:pass@host:port/db  # Auto-provided by Render
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
 REDIS_URL=redis://host:port  # Auto-provided by Render
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 ALLOWED_HOSTS=your-backend-url.onrender.com,.onrender.com
 ```
+
+**Note**: Get DATABASE_URL, SUPABASE_URL, and SUPABASE_KEY from your Supabase project dashboard.
 
 #### Frontend Environment Variables
 
@@ -247,17 +254,26 @@ Once deployed, update your environment variables with actual URLs:
 ### Free Tier (Development/Testing)
 
 - Web Service: Free (750 hours/month)
-- PostgreSQL: Free (90 days, then expires)
+- Supabase Database: Free (500MB storage, 1GB bandwidth)
 - Redis: Free (30MB)
 - Static Site: Free
+- **Total**: $0/month
 
 ### Production Tier (Recommended)
 
 - Web Service: $7/month (always-on)
-- PostgreSQL: $7/month (persistent storage)
+- Supabase Pro: $25/month (8GB database, 250GB bandwidth, 100GB storage)
 - Redis: $7/month (persistent storage)
 - Static Site: Free
-- **Total**: ~$21/month
+- **Total**: ~$39/month
+
+### Budget Production Option
+
+- Web Service: $7/month (always-on)
+- Supabase Free: $0/month (if under limits)
+- Redis: $7/month (persistent storage)
+- Static Site: Free
+- **Total**: ~$14/month
 
 ## Next Steps
 

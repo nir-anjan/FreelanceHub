@@ -8,6 +8,7 @@ Your FreelanceMarketplace application is now fully configured for production dep
 
 - GitHub repository with your code
 - Render.com account (free signup)
+- Supabase account (free tier available)
 - Razorpay account for payments
 
 ### One-Click Deployment
@@ -63,6 +64,9 @@ Your FreelanceMarketplace application is now fully configured for production dep
 ```bash
 SECRET_KEY=your-50-character-secret-key-here
 DEBUG=False
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 ```
@@ -75,16 +79,18 @@ VITE_RAZORPAY_KEY_ID=your_razorpay_key_id
 NODE_ENV=production
 ```
 
-_Note: DATABASE_URL and REDIS_URL are automatically provided by Render_
+_Note: DATABASE_URL comes from your Supabase project. REDIS_URL is automatically provided by Render_
 
 ### Service Architecture
 
 ```mermaid
 graph TB
     A[Frontend - Static Site] --> B[Backend - Web Service]
-    B --> C[PostgreSQL Database]
+    B --> C[Supabase Database]
     B --> D[Redis Cache]
     B --> E[External APIs - Razorpay]
+    C --> F[Supabase Storage]
+    C --> G[Supabase Auth]
 ```
 
 ### Post-Deployment Steps

@@ -96,12 +96,17 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Use environment variable for production, fallback to local settings
+# Supabase Database Configuration
+# Use Supabase DATABASE_URL for both development and production
+DATABASE_URL = config('DATABASE_URL', default='postgresql://postgres:qwerty@localhost:5432/freelance_marketplace_db')
+
 DATABASES = {
-    'default': dj_database_url.parse(
-        config('DATABASE_URL', default='postgresql://postgres:qwerty@localhost:5432/freelance_marketplace_db')
-    )
+    'default': dj_database_url.parse(DATABASE_URL)
 }
+
+# Supabase Configuration
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
 # SQLite database configuration (backup for development)
 # DATABASES = {

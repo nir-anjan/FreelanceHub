@@ -8,21 +8,18 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: DATABASE_URL
-        fromDatabase:
-          name: freelance-marketplace-db
-          property: connectionString
       - key: DJANGO_SETTINGS_MODULE
         value: backend.settings
       - key: DEBUG
         value: False
+      # Supabase configuration - set these values in Render dashboard
+      - key: DATABASE_URL
+        value: # Set this to your Supabase database URL
+      - key: SUPABASE_URL
+        value: # Set this to your Supabase project URL
+      - key: SUPABASE_KEY
+        value: # Set this to your Supabase anon/public key
 
   - type: redis
     name: freelance-marketplace-redis
-    plan: free
-
-databases:
-  - name: freelance-marketplace-db
-    databaseName: freelance_marketplace
-    user: postgres
     plan: free

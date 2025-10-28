@@ -2,17 +2,19 @@ from django.http import JsonResponse
 from django.db import connection
 from django.conf import settings
 import redis
+from api.common.supabase_utils import test_supabase_connection
 
 def health_check(request):
     """
     Health check endpoint for monitoring service status
-    Returns status of database, Redis, and basic application health
+    Returns status of database, Redis, Supabase, and basic application health
     """
     health_status = {
         'status': 'healthy',
         'service': 'FreelanceMarketplace Backend',
         'database': 'unknown',
         'redis': 'unknown',
+        'supabase': 'unknown',
         'debug_mode': settings.DEBUG
     }
     
@@ -41,6 +43,16 @@ def health_check(request):
         health_status['redis'] = f'error: {str(e)}'
         # Redis is not critical for basic API functionality
         # so we don't mark as unhealthy unless database is also down
+    
+    # Check Supabase connection
+    try:
+        if test_supabase_connection():
+            health_status['supabase'] = 'connected'
+        else:
+            health_status['supabase'] = 'not_configured'
+    except Exception as e:
+        health_status['supabase'] = f'error: {str(e)}'
+        # Supabase is additional service, don't mark as unhealthy
     
     return JsonResponse(health_status, status=status_code)
 
